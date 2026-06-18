@@ -82,3 +82,31 @@ exports.login = async (req, res) => {
   }
 };
 
+exports.getProfile = async (req, res) => {
+  try {
+    const user = await pool.query(
+      `
+      SELECT
+      id,
+      name,
+      email,
+      department,
+      level,
+      bio,
+      profile_picture,
+      role,
+      verified
+      FROM users
+      WHERE id = $1
+      `,
+      [req.user.id]
+    );
+
+    res.json(user.rows[0]);
+
+  } catch (err) {
+    res.status(500).json({
+      error: err.message
+    });
+  }
+};

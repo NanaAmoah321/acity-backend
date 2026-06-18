@@ -2,14 +2,29 @@ const pool = require("../config/db");
 
 
 exports.createListing = async (req, res) => {
-  const { title, description, category } = req.body;
+  const {
+  title,
+  description,
+  category,
+  price,
+  image_url
+  } = req.body;
   const user_id = req.user.id;
 
   try {
     const newListing = await pool.query(
-      "INSERT INTO listings (user_id, title, description, category, status) VALUES ($1, $2, $3, $4, $5) RETURNING *",
-      [user_id, title, description, category, "available"]
+      "INSERT INTO listings (user_id, title, description, category, price, image_url, status) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *",
+      [user_id, title, description, category, price, image_url, "available"]
     );
+
+    await pool.query(
+      `
+      UPDATE users
+      SET store_category = $1
+      WHERE id = $2
+      `,
+     [category, user_id]
+   );
 
     res.json(newListing.rows[0]);
   } catch (err) {
@@ -21,11 +36,77 @@ exports.createListing = async (req, res) => {
 
 exports.getListings = async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM listings");
+
+    const result = await pool.query(`
+      SELECT
+
+        listings.*,
+
+        users.name AS seller_name,
+
+        ROUND(
+          AVG(reviews.rating),
+          1
+        ) AS average_rating,
+
+        COUNT(reviews.id)
+        AS total_reviews
+
+      FROM listings
+
+      JOIN users
+      ON listings.user_id = users.id
+
+      LEFT JOIN reviews
+      ON reviews.reviewed_user_id = users.id
+
+      GROUP BY
+        listings.id,
+        users.name
+
+      ORDER BY
+        listings.created_at DESC
+    `);
+
     res.json(result.rows);
+
   } catch (err) {
-    console.error("GET LISTINGS ERROR:", err);
-    res.status(500).json({ error: err.message || "Database error" });
+
+    console.error(err);
+
+    res.status(500).json({
+      error: err.message
+    });
+
+  }
+};
+
+exports.searchListings = async (req, res) => {
+  const { q } = req.query;
+
+  try {
+    const result = await pool.query(
+      `
+      SELECT
+        listings.*,
+        users.name AS seller_name
+      FROM listings
+      JOIN users
+      ON listings.user_id = users.id
+      WHERE
+      title ILIKE $1
+      OR description ILIKE $1
+      OR category ILIKE $1
+      `,
+      [`%${q}%`]
+    );
+
+    res.json(result.rows);
+
+  } catch (err) {
+    res.status(500).json({
+      error: err.message
+    });
   }
 };
 
@@ -45,20 +126,63 @@ exports.getUserListings = async (req, res) => {
 };
 exports.updateListing = async (req, res) => {
   const { id } = req.params;
-  const { title, description, category, status } = req.body;
+  const {
+    title,
+    description,
+    category,
+    price,
+    image_url,
+    status
+  } = req.body;
+
   const user_id = req.user.id;
 
   try {
+
+    console.log("REQ USER:", req.user);
+    console.log("USER ID:", user_id);
+    console.log("LISTING ID:", id);
+    console.log("BODY:", req.body);
+
     const result = await pool.query(
-      `UPDATE listings 
-       SET title = $1, description = $2, category = $3, status = $4
-       WHERE id = $5 AND user_id = $6 
-       RETURNING *`,
-      [title, description, category, status, id, user_id]
+    `
+    UPDATE listings
+    SET
+      title = $1,
+      description = $2,
+      category = $3,
+      price = $4,
+      image_url = $5,
+      status = $6,
+      sold_at =
+        CASE
+          WHEN status <> 'sold'
+              AND $6::varchar = 'sold'
+          THEN NOW()
+          ELSE sold_at
+        END
+    WHERE id = $7
+    AND user_id = $8
+    RETURNING *
+    `,
+    [
+      title,
+      description,
+      category,
+      price,
+      image_url,
+      status,
+      id,
+      user_id
+    ]
     );
 
+    console.log("UPDATED ROWS:", result.rows);
+
     if (result.rows.length === 0) {
-      return res.status(404).json({ message: "Listing not found or unauthorized" });
+      return res.status(404).json({
+        message: "Listing not found or unauthorized"
+      });
     }
 
     res.json({
@@ -66,9 +190,17 @@ exports.updateListing = async (req, res) => {
       listing: result.rows[0]
     });
 
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    } catch (err) {
+
+    console.error("UPDATE ERROR:", err);
+
+    res.status(500).json({
+      error: err.message
+    });
+
+   
+
+   }
 };
 exports.deleteListing = async (req, res) => {
   const { id } = req.params;
@@ -110,7 +242,7 @@ exports.addInterest = async (req, res) => {
       [user_id, listing_id]
     );
 
-    res.json({ message: "Interest added!" });
+    res.json({ message: "Added to cart" });
 
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -188,5 +320,186 @@ exports.adminDeleteListing = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
+  }
+};
+
+exports.getListingById = async (req, res) => {
+
+    try {
+
+        const result =
+        await pool.query(
+        `
+        SELECT
+            listings.*,
+            users.name
+            AS seller_name
+
+        FROM listings
+
+        JOIN users
+        ON users.id =
+           listings.user_id
+
+        WHERE listings.id = $1
+        `,
+        [
+            req.params.id
+        ]
+        );
+
+        console.log("PARAM ID:", req.params.id);
+        console.log("ROWS:", result.rows);
+
+        res.json(
+            result.rows[0]
+        );
+
+    } catch (err) {
+
+        res.status(500).json({
+            error:
+            err.message
+        });
+
+    }
+
+};
+
+async function deleteOldSoldListings() {
+
+    await pool.query(
+        `
+        DELETE FROM listings
+        WHERE
+            status = 'sold'
+        AND
+            sold_at <
+            NOW() - INTERVAL '30 days'
+        `
+    );
+
+}
+
+exports.getStores = async (req, res) => {
+
+  try {
+
+    const result = await pool.query(`
+      SELECT
+        users.id AS user_id,
+
+        users.name AS store_name,
+
+        users.store_category,
+
+        COUNT(listings.id)
+        AS total_products,
+
+        ROUND(
+          AVG(reviews.rating),
+          1
+        ) AS average_rating,
+
+        COUNT(reviews.id)
+        AS total_reviews,
+
+        (
+          SELECT image_url
+          FROM listings l
+          WHERE l.user_id = users.id
+          ORDER BY created_at DESC
+          LIMIT 1
+        ) AS cover_image
+
+      FROM users
+
+      JOIN listings
+      ON listings.user_id = users.id
+
+      LEFT JOIN reviews
+      ON reviews.reviewed_user_id = users.id
+
+      GROUP BY
+        users.id,
+        users.name,
+        users.store_category
+
+      ORDER BY users.name
+    `);
+
+    res.json(result.rows);
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      error: err.message
+    });
+
+  }
+
+};
+
+exports.getStore = async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+
+    const seller = await pool.query(
+      `
+      SELECT
+        users.id,
+        users.name AS seller_name,
+
+        (
+          SELECT category
+          FROM listings
+          WHERE user_id = users.id
+          LIMIT 1
+        ) AS store_category,
+
+        ROUND(
+          AVG(reviews.rating),
+          1
+        ) AS average_rating,
+
+        COUNT(reviews.id)
+        AS total_reviews
+
+      FROM users
+
+      LEFT JOIN reviews
+      ON reviews.reviewed_user_id = users.id
+
+      WHERE users.id = $1
+
+      GROUP BY users.id
+      `,
+      [userId]
+    );
+
+    const products = await pool.query(
+      `
+      SELECT *
+      FROM listings
+      WHERE user_id = $1
+      ORDER BY created_at DESC
+      `,
+      [userId]
+    );
+
+    res.json({
+      seller: seller.rows[0],
+      products: products.rows
+    });
+
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      error: err.message
+    });
   }
 };
