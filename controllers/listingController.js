@@ -254,13 +254,28 @@ exports.getInterestedListings = async (req, res) => {
 
   try {
     const result = await pool.query(
-      `SELECT listings.* 
-       FROM interests
-       JOIN listings ON interests.listing_id = listings.id
-       WHERE interests.user_id = $1
-       ORDER BY interests.created_at DESC`,
+      `SELECT
+
+        listings.*,
+
+        orders.status
+        AS order_status
+
+      FROM interests
+
+      JOIN listings
+      ON interests.listing_id = listings.id
+
+      LEFT JOIN orders
+      ON orders.listing_id = listings.id
+      AND orders.buyer_id = interests.user_id
+
+      WHERE interests.user_id = $1
+
+      ORDER BY interests.created_at DESC`,
       [user_id]
     );
+
 
     res.json(result.rows);
 
@@ -502,4 +517,166 @@ exports.getStore = async (req, res) => {
       error: err.message
     });
   }
+};
+
+exports.createOrder = async (req, res) => {
+
+    const buyer_id =
+    req.user.id;
+
+    const {
+        listing_id,
+        seller_id,
+        delivery_method,
+        hostel,
+        room_number,
+        meeting_location
+    } = req.body;
+
+    try {
+
+        const order =
+        await pool.query(
+            `
+            INSERT INTO orders (
+
+                buyer_id,
+                seller_id,
+                listing_id,
+                delivery_method,
+                hostel,
+                room_number,
+                meeting_location
+
+            )
+
+            VALUES (
+                $1,$2,$3,$4,$5,$6,$7
+            )
+
+            RETURNING *
+            `,
+            [
+                buyer_id,
+                seller_id,
+                listing_id,
+                delivery_method,
+                hostel,
+                room_number,
+                meeting_location
+            ]
+        );
+
+        res.json({
+            message:
+            "Order created",
+            order:
+            order.rows[0]
+        });
+
+    } catch(err) {
+
+        console.error(err);
+
+        res.status(500).json({
+            error:
+            err.message
+        });
+
+    }
+
+};
+
+exports.getSellerOrders = async (req, res) => {
+
+    const seller_id =
+    req.user.id;
+
+    try {
+
+        const orders =
+        await pool.query(
+            `
+            SELECT
+
+                orders.*,
+
+                listings.title,
+
+                listings.price,
+
+                users.name AS buyer_name
+
+            FROM orders
+
+            JOIN listings
+            ON listings.id = orders.listing_id
+
+            JOIN users
+            ON users.id = orders.buyer_id
+
+            WHERE orders.seller_id = $1
+
+            ORDER BY orders.created_at DESC
+            `,
+            [seller_id]
+        );
+
+        res.json(
+            orders.rows
+        );
+
+    } catch(err) {
+
+        res.status(500).json({
+            error: err.message
+        });
+
+    }
+
+};
+
+exports.updateOrderStatus = async (req, res) => {
+
+    const { id } =
+    req.params;
+
+    const { status } =
+    req.body;
+
+    try {
+
+        const result =
+        await pool.query(
+            `
+            UPDATE orders
+
+            SET status = $1
+
+            WHERE id = $2
+
+            RETURNING *
+            `,
+            [
+                status,
+                id
+            ]
+        );
+
+        res.json({
+            message:
+            "Order updated",
+            order:
+            result.rows[0]
+        });
+
+    } catch(err) {
+
+        res.status(500).json({
+            error:
+            err.message
+        });
+
+    }
+
 };

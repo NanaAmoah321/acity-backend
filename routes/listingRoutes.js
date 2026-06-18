@@ -19,6 +19,9 @@ router.delete("/admin/:id", authMiddleware, adminMiddleware, listingController.a
 router.put("/flag/:id", authMiddleware,adminMiddleware, listingController.flagListing);
 router.get("/stores",listingController.getStores);
 router.get("/store/:userId",listingController.getStore);
+router.get("/seller-orders", authMiddleware, listingController.getSellerOrders);
+router.put("/orders/:id",authMiddleware,listingController.updateOrderStatus);
 router.get( "/:id", listingController.getListingById);
+router.post("/orders",authMiddleware, listingController.createOrder);
 
 module.exports = router;
