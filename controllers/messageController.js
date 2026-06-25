@@ -1,6 +1,9 @@
 const pool = require("../config/db");
+const { createNotification } = require("../utils/notifications");
 
 exports.sendMessage = async (req, res) => {
+
+    
 
     const { receiver_id, message } = req.body;
 
@@ -20,12 +23,40 @@ exports.sendMessage = async (req, res) => {
             `,
             [
                 req.user.id,
+                
                 receiver_id,
                 message
             ]
         );
 
-        res.json(result.rows[0]);
+        const sender = await pool.query(
+            "SELECT name FROM users WHERE id = $1",
+            [req.user.id]
+            
+        );
+
+        console.log(sender.rows);
+        console.log(
+            `${sender.rows[0].name}: "${message.substring(0,50)}${message.length > 50 ? "..." : ""}"`
+        );
+
+        console.log("Sender ID:", req.user.id);
+        console.log("Related ID being saved:", req.user.id);
+
+        await createNotification(
+            receiver_id,
+            "New Message",
+            `${sender.rows[0].name}: "${message.substring(0,50)}${message.length > 50 ? "..." : ""}"`,
+            "message",
+            null,
+            null,
+            req.user.id
+        );
+
+        
+        
+        
+    res.json(result.rows[0]);
 
     } catch (err) {
 

@@ -1,4 +1,5 @@
 const pool = require("../config/db");
+const { createNotification } = require("../utils/notifications");
 
 
 exports.createListing = async (req, res) => {
@@ -521,8 +522,7 @@ exports.getStore = async (req, res) => {
 
 exports.createOrder = async (req, res) => {
 
-    const buyer_id =
-    req.user.id;
+    const buyer_id = req.user.id;
 
     const {
         listing_id,
@@ -535,8 +535,7 @@ exports.createOrder = async (req, res) => {
 
     try {
 
-        const order =
-        await pool.query(
+        const order = await pool.query(
             `
             INSERT INTO orders (
 
@@ -567,11 +566,46 @@ exports.createOrder = async (req, res) => {
             ]
         );
 
+        // Get buyer's name
+        const buyer = await pool.query(
+            `
+            SELECT name
+            FROM users
+            WHERE id = $1
+            `,
+            [buyer_id]
+        );
+
+        // Get listing title
+        const listing = await pool.query(
+            `
+            SELECT title
+            FROM listings
+            WHERE id = $1
+            `,
+            [listing_id]
+        );
+
+        // Create notification for seller
+        await createNotification(
+
+            seller_id,
+
+            "New Order",
+
+            `${buyer.rows[0].name} ordered "${listing.rows[0].title}".`,
+
+            "order",
+
+            listing_id,
+
+            "profile.html#orders"
+
+        );
+
         res.json({
-            message:
-            "Order created",
-            order:
-            order.rows[0]
+            message: "Order created",
+            order: order.rows[0]
         });
 
     } catch(err) {
@@ -579,8 +613,7 @@ exports.createOrder = async (req, res) => {
         console.error(err);
 
         res.status(500).json({
-            error:
-            err.message
+            error: err.message
         });
 
     }

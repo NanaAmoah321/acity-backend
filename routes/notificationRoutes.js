@@ -1,8 +1,6 @@
-const express =
-require("express");
+const express = require("express");
 
-const router =
-express.Router();
+const router = express.Router();
 
 const authMiddleware =
 require("../middleware/authMiddleware");
@@ -13,8 +11,19 @@ require("../controllers/notificationController");
 router.get(
     "/",
     authMiddleware,
-    notificationController
-    .getNotifications
+    notificationController.getNotifications
+);
+
+router.get(
+    "/unread-count",
+    authMiddleware,
+    notificationController.getUnreadCount
+);
+
+router.patch(
+    "/:id/read",
+    authMiddleware,
+    notificationController.markAsRead
 );
 
 module.exports = router;

@@ -8,6 +8,7 @@ async (req, res) => {
         description,
         category,
         rate,
+        rate_type,
         portfolio_url
     } = req.body;
 
@@ -23,10 +24,11 @@ async (req, res) => {
                 description,
                 category,
                 rate,
+                rate_type,
                 portfolio_url
             )
             VALUES
-            ($1,$2,$3,$4,$5,$6)
+            ($1,$2,$3,$4,$5,$6,$7)
             RETURNING *
             `,
             [
@@ -35,6 +37,7 @@ async (req, res) => {
                 description,
                 category,
                 rate,
+                rate_type,
                 portfolio_url
             ]
         );

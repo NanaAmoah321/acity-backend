@@ -144,3 +144,8 @@ app.listen(PORT, () => {
   );
 
 });
+
+app.use(
+    "/api/notifications",
+    notificationRoutes
+);
