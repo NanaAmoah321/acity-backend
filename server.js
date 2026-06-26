@@ -6,7 +6,7 @@ const pool = require("./config/db");
 
 const listingRoutes = require("./routes/listingRoutes");
 const authRoutes = require("./routes/authRoutes");
-const uploadRoutes = require("./routes/uploadRoutes");
+
 const serviceRoutes = require("./routes/serviceRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const adminRoutes = require("./routes/adminRoutes");
@@ -21,7 +21,7 @@ app.use(express.json());
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/listings", listingRoutes);
-app.use("/api/upload", uploadRoutes);
+
 app.use("/api/services", serviceRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/admin", adminRoutes);

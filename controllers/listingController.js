@@ -1,6 +1,7 @@
 const pool = require("../config/db");
 const { createNotification } = require("../utils/notifications");
 const { sendEmail } = require("../utils/email");
+const supabase = require("../config/supabase");
 
 const {
     buyerOrderTemplate,
@@ -9,35 +10,129 @@ const {
 
 
 exports.createListing = async (req, res) => {
-  const {
-  title,
-  description,
-  category,
-  price,
-  image_url
-  } = req.body;
-  const user_id = req.user.id;
 
-  try {
-    const newListing = await pool.query(
-      "INSERT INTO listings (user_id, title, description, category, price, image_url, status) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *",
-      [user_id, title, description, category, price, image_url, "available"]
-    );
+    const {
 
-    await pool.query(
-      `
-      UPDATE users
-      SET store_category = $1
-      WHERE id = $2
-      `,
-     [category, user_id]
-   );
+        title,
+        description,
+        category,
+        price
 
-    res.json(newListing.rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
-  }
+    } = req.body;
+
+    const user_id = req.user.id;
+
+    let image_url = null;
+
+    try {
+
+        if (req.file) {
+
+            const fileName =
+                `${Date.now()}-${req.file.originalname}`;
+
+            const { error } =
+                await supabase.storage
+                    .from("listing-images")
+                    .upload(
+                        fileName,
+                        req.file.buffer,
+                        {
+                            contentType: req.file.mimetype
+                        }
+                    );
+
+            if (error) {
+
+                return res.status(500).json({
+                    error: error.message
+                });
+
+            }
+
+            const { data } =
+                supabase.storage
+                    .from("listing-images")
+                    .getPublicUrl(fileName);
+
+            image_url = data.publicUrl;
+
+        }
+
+        const newListing = await pool.query(
+
+            `
+            INSERT INTO listings (
+
+                user_id,
+                title,
+                description,
+                category,
+                price,
+                image_url,
+                status
+
+            )
+
+            VALUES ($1,$2,$3,$4,$5,$6,$7)
+
+            RETURNING *
+            `,
+
+            [
+
+                user_id,
+
+                title,
+
+                description,
+
+                category,
+
+                price,
+
+                image_url,
+
+                "available"
+
+            ]
+
+        );
+
+        await pool.query(
+
+            `
+            UPDATE users
+
+            SET store_category = $1
+
+            WHERE id = $2
+            `,
+
+            [
+
+                category,
+
+                user_id
+
+            ]
+
+        );
+
+        res.json(newListing.rows[0]);
+
+    } catch (err) {
+
+        console.error(err);
+
+        res.status(500).json({
+
+            error: err.message
+
+        });
+
+    }
+
 };
 
 
@@ -89,32 +184,55 @@ exports.getListings = async (req, res) => {
 };
 
 exports.searchListings = async (req, res) => {
-  const { q } = req.query;
 
-  try {
-    const result = await pool.query(
-      `
-      SELECT
-        listings.*,
-        users.name AS seller_name
-      FROM listings
-      JOIN users
-      ON listings.user_id = users.id
-      WHERE
-      title ILIKE $1
-      OR description ILIKE $1
-      OR category ILIKE $1
-      `,
-      [`%${q}%`]
-    );
+    const { q } = req.query;
 
-    res.json(result.rows);
+    try {
 
-  } catch (err) {
-    res.status(500).json({
-      error: err.message
-    });
-  }
+        const result = await pool.query(
+
+            `
+            SELECT
+
+                listings.*,
+
+                users.name AS seller_name
+
+            FROM listings
+
+            JOIN users
+
+            ON listings.user_id = users.id
+
+            WHERE
+
+                listings.title ILIKE $1
+
+                OR listings.description ILIKE $1
+
+                OR listings.category ILIKE $1
+
+                OR users.name ILIKE $1
+
+            ORDER BY listings.created_at DESC
+            `,
+
+            [`%${q}%`]
+
+        );
+
+        res.json(result.rows);
+
+    } catch (err) {
+
+        res.status(500).json({
+
+            error: err.message
+
+        });
+
+    }
+
 };
 
 exports.getUserListings = async (req, res) => {

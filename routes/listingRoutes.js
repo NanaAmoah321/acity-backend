@@ -4,9 +4,17 @@ const router = express.Router();
 const listingController = require("../controllers/listingController");
 const authMiddleware = require("../middleware/authMiddleware");
 const adminMiddleware = require("../middleware/adminMiddleware");
+const upload = require("../middleware/upload");
+
+router.post(
+    "/",
+    authMiddleware,
+    upload.single("image"),
+    listingController.createListing
+);
 
 
-router.post("/", authMiddleware, listingController.createListing);
+
 router.get("/my", authMiddleware, listingController.getUserListings);
 router.get("/search", listingController.searchListings);
 router.get("/", listingController.getListings);
