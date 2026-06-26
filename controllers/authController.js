@@ -1,13 +1,22 @@
 const pool = require("../config/db");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const { sendEmail } = require("../utils/email");
+const { welcomeTemplate } = require("../utils/emailTemplates");
+const crypto = require("crypto");
+const { resetPasswordTemplate } = require("../utils/emailTemplates");
 
 
 exports.register = async (req, res) => {
   const { name, email, password } = req.body;
 
-  if (!email.endsWith("@acity.edu.gh")) {
-    return res.status(400).json({ message: "Use Acity email only" });
+  if (
+    !email.endsWith("@acity.edu.gh") &&
+    !email.endsWith("@gmail.com")
+  ) {
+    return res.status(400).json({
+        message: "Use Acity or Gmail email."
+    });
   }
 
   try {
@@ -27,6 +36,19 @@ exports.register = async (req, res) => {
       "INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING *",
       [name, email, hashedPassword]
     );
+
+    sendEmail(
+    email,
+    "🎉 Welcome to Acity Connect",
+    welcomeTemplate(name)
+    ).catch(err => {
+    console.error("Welcome email failed:", err);
+    });
+
+    res.json({
+    message: "User registered successfully",
+    user: newUser.rows[0],
+    });
 
     res.json({
       message: "User registered successfully",
@@ -80,6 +102,164 @@ exports.login = async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+};
+
+exports.forgotPassword = async (req, res) => {
+
+    const { email } = req.body;
+
+    try {
+
+        const user = await pool.query(
+            `
+            SELECT *
+            FROM users
+            WHERE email = $1
+            `,
+            [email]
+        );
+
+        if(user.rows.length === 0){
+
+            return res.json({
+                message:
+                "If the account exists, a reset email has been sent."
+            });
+
+        }
+
+        const token =
+        crypto.randomBytes(32).toString("hex");
+
+        const expires =
+        new Date(
+            Date.now() + 30 * 60 * 1000
+        );
+
+        await pool.query(
+            `
+            UPDATE users
+            SET
+            reset_token = $1,
+            reset_token_expires = $2
+            WHERE id = $3
+            `,
+            [
+                token,
+                expires,
+                user.rows[0].id
+            ]
+        );
+
+        const resetLink =
+
+        `http://localhost:5500/reset-password.html?token=${token}`;
+
+        await sendEmail(
+
+            email,
+
+            "Reset your Acity Connect password",
+
+            resetPasswordTemplate(
+                user.rows[0].name,
+                resetLink
+            )
+
+        );
+
+        res.json({
+
+            message:
+            "Password reset email sent."
+
+        });
+
+    } catch(err){
+
+        res.status(500).json({
+
+            error:err.message
+
+        });
+
+    }
+
+};
+
+exports.resetPassword = async (req, res) => {
+
+    const { token } = req.params;
+
+    const { password } = req.body;
+
+    try {
+
+        const user = await pool.query(
+            `
+            SELECT *
+            FROM users
+            WHERE
+            reset_token = $1
+
+            AND
+
+            reset_token_expires > NOW()
+            `,
+            [token]
+        );
+
+        if(user.rows.length === 0){
+
+            return res.status(400).json({
+
+                message:
+                "Invalid or expired reset link."
+
+            });
+
+        }
+
+        const hashedPassword =
+        await bcrypt.hash(password,10);
+
+        await pool.query(
+            `
+            UPDATE users
+
+            SET
+
+            password = $1,
+
+            reset_token = NULL,
+
+            reset_token_expires = NULL
+
+            WHERE id = $2
+            `,
+            [
+                hashedPassword,
+                user.rows[0].id
+            ]
+        );
+
+        res.json({
+
+            message:
+            "Password updated successfully."
+
+        });
+
+    } catch(err){
+
+        res.status(500).json({
+
+            error:err.message
+
+        });
+
+    }
+
 };
 
 exports.getProfile = async (req, res) => {

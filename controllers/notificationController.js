@@ -84,3 +84,39 @@ exports.markAsRead = async (req, res) => {
     }
 
 };
+
+exports.markAllAsRead = async (req, res) => {
+
+    try{
+
+        await pool.query(
+
+            `
+            UPDATE notifications
+
+            SET is_read = TRUE
+
+            WHERE user_id = $1
+            `,
+
+            [req.user.id]
+
+        );
+
+        res.json({
+
+            message:"All notifications marked as read."
+
+        });
+
+    }catch(err){
+
+        res.status(500).json({
+
+            error:err.message
+
+        });
+
+    }
+
+};

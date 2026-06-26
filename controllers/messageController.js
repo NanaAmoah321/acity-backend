@@ -1,5 +1,10 @@
 const pool = require("../config/db");
 const { createNotification } = require("../utils/notifications");
+const { sendEmail } = require("../utils/email");
+
+const {
+    messageTemplate
+} = require("../utils/emailTemplates");
 
 exports.sendMessage = async (req, res) => {
 
@@ -35,6 +40,17 @@ exports.sendMessage = async (req, res) => {
             
         );
 
+        const receiver = await pool.query(
+        `
+        SELECT
+            name,
+            email
+        FROM users
+        WHERE id = $1
+        `,
+        [receiver_id]
+        );
+
         console.log(sender.rows);
         console.log(
             `${sender.rows[0].name}: "${message.substring(0,50)}${message.length > 50 ? "..." : ""}"`
@@ -51,6 +67,24 @@ exports.sendMessage = async (req, res) => {
             null,
             null,
             req.user.id
+        );
+
+        await sendEmail(
+
+            receiver.rows[0].email,
+
+            `💬 New message from ${sender.rows[0].name}`,
+
+            messageTemplate(
+
+                receiver.rows[0].name,
+
+                sender.rows[0].name,
+
+                message
+
+            )
+
         );
 
         

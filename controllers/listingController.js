@@ -1,5 +1,11 @@
 const pool = require("../config/db");
 const { createNotification } = require("../utils/notifications");
+const { sendEmail } = require("../utils/email");
+
+const {
+    buyerOrderTemplate,
+    sellerOrderTemplate
+} = require("../utils/emailTemplates");
 
 
 exports.createListing = async (req, res) => {
@@ -586,6 +592,28 @@ exports.createOrder = async (req, res) => {
             [listing_id]
         );
 
+        const buyerInfo = await pool.query(
+        `
+        SELECT
+          name,
+          email
+        FROM users
+        WHERE id = $1
+        `,
+        [buyer_id]
+        );
+
+        const sellerInfo = await pool.query(
+        `
+        SELECT
+          name,
+          email
+        FROM users
+        WHERE id = $1
+        `,
+        [seller_id]
+        );
+
         // Create notification for seller
         await createNotification(
 
@@ -600,6 +628,40 @@ exports.createOrder = async (req, res) => {
             listing_id,
 
             "profile.html#orders"
+
+        );
+
+        await sendEmail(
+
+          buyerInfo.rows[0].email,
+
+          "🎉 Order Confirmed",
+
+          buyerOrderTemplate(
+
+          buyerInfo.rows[0].name,
+
+          listing.rows[0].title
+
+         )
+
+        );
+
+        await sendEmail(
+
+          sellerInfo.rows[0].email,
+
+          "📦 New Order Received",
+
+          sellerOrderTemplate(
+
+            sellerInfo.rows[0].name,
+
+            buyerInfo.rows[0].name,
+
+            listing.rows[0].title
+
+          )
 
         );
 
