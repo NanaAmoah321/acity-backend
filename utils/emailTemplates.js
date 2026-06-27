@@ -104,7 +104,7 @@ function welcomeTemplate(name) {
                                 >
 
                                     <a
-                                        href="http://localhost:5500"
+                                        href="https://acity-backend.onrender.com"
                                         style="
                                             display:inline-block;
                                             padding:16px 36px;
@@ -304,7 +304,7 @@ function messageTemplate(receiverName, senderName, message){
             </div>
 
             <a
-                href="http://localhost:5500/inbox.html"
+                href="https://acity-backend.onrender.com/inbox.html"
                 style="
                     display:inline-block;
                     background:#ff2d2d;
