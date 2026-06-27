@@ -4,7 +4,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 async function sendEmail(to, subject, html) {
 
-    await resend.emails.send({
+    const { data, error } = await resend.emails.send({
 
         from: process.env.EMAIL_FROM,
 
@@ -15,6 +15,16 @@ async function sendEmail(to, subject, html) {
         html
 
     });
+
+    console.log("Resend response:", data);
+
+    if (error) {
+
+        console.error("Resend error:", error);
+
+        throw error;
+
+    }
 
 }
 
