@@ -150,7 +150,7 @@ exports.forgotPassword = async (req, res) => {
 
         const resetLink =
 
-        `https://acity-backend.onrender.com/reset-password.html?token=${token}`;
+        `https://nanaamoah321.github.io/reset-password.html?token=${token}`;
 
         await sendEmail(
 
