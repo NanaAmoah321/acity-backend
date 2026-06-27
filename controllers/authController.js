@@ -50,10 +50,7 @@ exports.register = async (req, res) => {
     user: newUser.rows[0],
     });
 
-    res.json({
-      message: "User registered successfully",
-      user: newUser.rows[0],
-    });
+    
 
   } catch (err) {
     console.error(err); 
