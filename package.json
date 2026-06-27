@@ -21,7 +21,8 @@
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.2.0",
     "nodemailer": "^9.0.1",
-    "pg": "^8.20.0"
+    "pg": "^8.20.0",
+    "resend": "^6.16.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
