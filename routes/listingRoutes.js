@@ -18,6 +18,11 @@ router.post(
 router.get("/my", authMiddleware, listingController.getUserListings);
 router.get("/search", listingController.searchListings);
 router.get("/", listingController.getListings);
+router.put(
+    "/:id/sold",
+    authMiddleware,
+    listingController.markListingSold
+);
 router.put("/:id", authMiddleware, listingController.updateListing);
 router.delete("/:id", authMiddleware, listingController.deleteListing);
 router.post("/interest", authMiddleware, listingController.addInterest);

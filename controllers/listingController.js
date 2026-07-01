@@ -893,3 +893,59 @@ exports.updateOrderStatus = async (req, res) => {
     }
 
 };
+
+exports.markListingSold = async (req, res) => {
+
+    const { id } = req.params;
+
+    const user_id = req.user.id;
+
+    try{
+
+        const result = await pool.query(
+
+            `
+            UPDATE listings
+            SET
+                status='sold',
+                sold_at=NOW()
+            WHERE id=$1
+            AND user_id=$2
+            RETURNING *
+            `,
+
+            [id, user_id]
+
+        );
+
+        if(result.rows.length===0){
+
+            return res.status(404).json({
+
+                message:"Listing not found."
+
+            });
+
+        }
+
+        res.json({
+
+            message:"Listing marked as sold.",
+
+            listing:result.rows[0]
+
+        });
+
+    }catch(err){
+
+        console.error(err);
+
+        res.status(500).json({
+
+            error:err.message
+
+        });
+
+    }
+
+};
