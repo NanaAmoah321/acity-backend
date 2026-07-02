@@ -16,7 +16,8 @@ exports.createListing = async (req, res) => {
         title,
         description,
         category,
-        price
+        price,
+        stock_quantity
 
     } = req.body;
 
@@ -70,11 +71,12 @@ exports.createListing = async (req, res) => {
                 category,
                 price,
                 image_url,
-                status
+                status,
+                stock_quantity
 
             )
 
-            VALUES ($1,$2,$3,$4,$5,$6,$7)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
 
             RETURNING *
             `,
@@ -93,7 +95,9 @@ exports.createListing = async (req, res) => {
 
                 image_url,
 
-                "available"
+                "available",
+
+                stock_quantity
 
             ]
 
@@ -256,6 +260,7 @@ exports.updateListing = async (req, res) => {
     description,
     category,
     price,
+    stock_quantity,
     image_url,
     status
   } = req.body;
@@ -279,6 +284,7 @@ exports.updateListing = async (req, res) => {
       price = $4,
       image_url = $5,
       status = $6,
+      stock_quantity = $9,
       sold_at =
         CASE
           WHEN status <> 'sold'
@@ -298,7 +304,8 @@ exports.updateListing = async (req, res) => {
       image_url,
       status,
       id,
-      user_id
+      user_id,
+      stock_quantity
     ]
     );
 
@@ -349,29 +356,80 @@ exports.deleteListing = async (req, res) => {
 };
 
 exports.addInterest = async (req, res) => {
-  const user_id = req.user.id;
-  const { listing_id } = req.body;
 
-  try {
-    const existing = await pool.query(
-      "SELECT * FROM interests WHERE user_id = $1 AND listing_id = $2",
-      [user_id, listing_id]
-    );
+    const user_id = req.user.id;
+    const { listing_id } = req.body;
 
-    if (existing.rows.length > 0) {
-      return res.status(400).json({ message: "Already interested" });
+    try{
+
+        const existing = await pool.query(
+
+            `
+            SELECT *
+            FROM interests
+            WHERE user_id=$1
+            AND listing_id=$2
+            `,
+
+            [user_id, listing_id]
+
+        );
+
+        if(existing.rows.length > 0){
+
+            await pool.query(
+
+                `
+                UPDATE interests
+                SET quantity = quantity + 1
+                WHERE user_id=$1
+                AND listing_id=$2
+                `,
+
+                [user_id, listing_id]
+
+            );
+
+            return res.json({
+
+                message:"Quantity updated."
+
+            });
+
+        }
+
+        await pool.query(
+
+            `
+            INSERT INTO interests
+            (
+                user_id,
+                listing_id,
+                quantity
+            )
+            VALUES($1,$2,1)
+            `,
+
+            [user_id, listing_id]
+
+        );
+
+        res.json({
+
+            message:"Added to cart."
+
+        });
+
+    }catch(err){
+
+        res.status(500).json({
+
+            error:err.message
+
+        });
+
     }
 
-    await pool.query(
-      "INSERT INTO interests (user_id, listing_id) VALUES ($1, $2)",
-      [user_id, listing_id]
-    );
-
-    res.json({ message: "Added to cart" });
-
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
 };
 
 exports.getInterestedListings = async (req, res) => {
@@ -379,27 +437,33 @@ exports.getInterestedListings = async (req, res) => {
 
   try {
     const result = await pool.query(
-      `SELECT
 
-        listings.*,
+`
+SELECT
 
-        orders.status
-        AS order_status
+    listings.*,
 
-      FROM interests
+    interests.quantity,
 
-      JOIN listings
-      ON interests.listing_id = listings.id
+    orders.status AS order_status
 
-      LEFT JOIN orders
-      ON orders.listing_id = listings.id
-      AND orders.buyer_id = interests.user_id
+FROM interests
 
-      WHERE interests.user_id = $1
+JOIN listings
+ON interests.listing_id = listings.id
 
-      ORDER BY interests.created_at DESC`,
-      [user_id]
-    );
+LEFT JOIN orders
+ON orders.listing_id = listings.id
+AND orders.buyer_id = interests.user_id
+
+WHERE interests.user_id = $1
+
+ORDER BY interests.created_at DESC
+`,
+
+[user_id]
+
+);
 
 
     res.json(result.rows);
@@ -408,6 +472,109 @@ exports.getInterestedListings = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+exports.updateCartQuantity = async (req, res) => {
+
+    const user_id = req.user.id;
+
+    const { listing_id } = req.params;
+
+    const { change } = req.body;
+
+    try {
+
+        // Check current quantity
+        const current = await pool.query(
+
+            `
+            SELECT quantity
+            FROM interests
+            WHERE user_id = $1
+            AND listing_id = $2
+            `,
+
+            [user_id, listing_id]
+
+        );
+
+        if (current.rows.length === 0) {
+
+            return res.status(404).json({
+
+                message: "Item not found in cart."
+
+            });
+
+        }
+
+        const newQuantity =
+            current.rows[0].quantity + change;
+
+        // Remove item if quantity reaches 0
+        if (newQuantity <= 0) {
+
+            await pool.query(
+
+                `
+                DELETE FROM interests
+                WHERE user_id = $1
+                AND listing_id = $2
+                `,
+
+                [user_id, listing_id]
+
+            );
+
+            return res.json({
+
+                message: "Item removed from cart."
+
+            });
+
+        }
+
+        // Update quantity
+        await pool.query(
+
+            `
+            UPDATE interests
+            SET quantity = $1
+            WHERE user_id = $2
+            AND listing_id = $3
+            `,
+
+            [
+
+                newQuantity,
+
+                user_id,
+
+                listing_id
+
+            ]
+
+        );
+
+        res.json({
+
+            message: "Quantity updated."
+
+        });
+
+    } catch (err) {
+
+        console.error(err);
+
+        res.status(500).json({
+
+            error: err.message
+
+        });
+
+    }
+
+};
+
 exports.removeFromCart = async (req, res) => {
   const user_id = req.user.id;
   const { listing_id } = req.params;
@@ -651,6 +818,7 @@ exports.createOrder = async (req, res) => {
     const {
         listing_id,
         seller_id,
+        quantity,
         delivery_method,
         hostel,
         room_number,
@@ -666,6 +834,7 @@ exports.createOrder = async (req, res) => {
                 buyer_id,
                 seller_id,
                 listing_id,
+                quantity,
                 delivery_method,
                 hostel,
                 room_number,
@@ -674,7 +843,7 @@ exports.createOrder = async (req, res) => {
             )
 
             VALUES (
-                $1,$2,$3,$4,$5,$6,$7
+                $1,$2,$3,$4,$5,$6,$7,$8
             )
 
             RETURNING *
@@ -683,6 +852,7 @@ exports.createOrder = async (req, res) => {
                 buyer_id,
                 seller_id,
                 listing_id,
+                quantity,
                 delivery_method,
                 hostel,
                 room_number,
@@ -787,6 +957,29 @@ exports.createOrder = async (req, res) => {
             message: "Order created",
             order: order.rows[0]
         });
+
+
+        await pool.query(
+
+`
+UPDATE listings
+
+SET stock_quantity=
+
+stock_quantity-$1
+
+WHERE id=$2
+`,
+
+[
+
+quantity,
+
+listing_id
+
+]
+
+);
 
     } catch(err) {
 
@@ -939,6 +1132,66 @@ exports.markListingSold = async (req, res) => {
     }catch(err){
 
         console.error(err);
+
+        res.status(500).json({
+
+            error:err.message
+
+        });
+
+    }
+
+};
+
+exports.updateCartQuantity = async(req,res)=>{
+
+    const user_id=req.user.id;
+
+    const {listing_id}=req.params;
+
+    const {change}=req.body;
+
+    try{
+
+        await pool.query(
+
+            `
+            UPDATE interests
+            SET quantity = quantity + $1
+            WHERE
+                user_id=$2
+            AND
+                listing_id=$3
+            `,
+
+            [
+
+                change,
+
+                user_id,
+
+                listing_id
+
+            ]
+
+        );
+
+        await pool.query(
+
+            `
+            DELETE FROM interests
+
+            WHERE quantity<=0
+            `
+        );
+
+        res.json({
+
+            message:"Updated"
+
+        });
+
+    }catch(err){
 
         res.status(500).json({
 
