@@ -827,6 +827,38 @@ exports.createOrder = async (req, res) => {
 
     try {
 
+      const stock = await pool.query(
+
+    `
+    SELECT stock_quantity
+    FROM listings
+    WHERE id = $1
+    `,
+
+    [listing_id]
+
+);
+
+if (stock.rows.length === 0) {
+
+    return res.status(404).json({
+
+        message: "Listing not found."
+
+    });
+
+}
+
+if (quantity > stock.rows[0].stock_quantity) {
+
+    return res.status(400).json({
+
+        message: `Only ${stock.rows[0].stock_quantity} item(s) left in stock.`
+
+    });
+
+}
+
         const order = await pool.query(
             `
             INSERT INTO orders (
