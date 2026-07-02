@@ -70,9 +70,10 @@ exports.createListing = async (req, res) => {
                 description,
                 category,
                 price,
+                stock_quantity,
                 image_url,
-                status,
-                stock_quantity
+                status
+                
 
             )
 
@@ -93,11 +94,13 @@ exports.createListing = async (req, res) => {
 
                 price,
 
+                stock_quantity,
+
                 image_url,
 
-                "available",
+                "available"
 
-                stock_quantity
+                
 
             ]
 
