@@ -954,39 +954,40 @@ if (quantity > stock.rows[0].stock_quantity) {
 
         );
 
-        await sendEmail(
+        try {
 
-          buyerInfo.rows[0].email,
+            await sendEmail(
+                buyerInfo.rows[0].email,
+                "🎉 Order Confirmed",
+                buyerOrderTemplate(
+                    buyerInfo.rows[0].name,
+                    listing.rows[0].title
+                )
+           );
 
-          "🎉 Order Confirmed",
+        } catch (err) {
 
-          buyerOrderTemplate(
+            console.error("Buyer email failed:", err.message);
 
-          buyerInfo.rows[0].name,
+        }
 
-          listing.rows[0].title
+        try {
 
-         )
+            await sendEmail(
+                sellerInfo.rows[0].email,
+                "📦 New Order Received",
+                sellerOrderTemplate(
+                    sellerInfo.rows[0].name,
+                    buyerInfo.rows[0].name,
+                    listing.rows[0].title
+                )
+            );
 
-        );
+        } catch (err) {
 
-        await sendEmail(
+            console.error("Seller email failed:", err.message);
 
-          sellerInfo.rows[0].email,
-
-          "📦 New Order Received",
-
-          sellerOrderTemplate(
-
-            sellerInfo.rows[0].name,
-
-            buyerInfo.rows[0].name,
-
-            listing.rows[0].title
-
-          )
-
-        );
+        }
 
         res.json({
             message: "Order created",
