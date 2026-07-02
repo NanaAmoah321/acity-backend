@@ -2,6 +2,8 @@ const express = require("express");
 
 const router = express.Router();
 
+const upload = require("../middleware/upload");
+
 const authMiddleware =
 require("../middleware/authMiddleware");
 
@@ -11,6 +13,7 @@ require("../controllers/messageController");
 router.post(
     "/",
     authMiddleware,
+    upload.single("attachment"),
     messageController.sendMessage
 );
 

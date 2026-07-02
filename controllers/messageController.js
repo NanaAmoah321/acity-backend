@@ -1,6 +1,7 @@
 const pool = require("../config/db");
 const { createNotification } = require("../utils/notifications");
 const { sendEmail } = require("../utils/email");
+const supabase = require("../config/supabase");
 
 const {
     messageTemplate
@@ -12,6 +13,59 @@ exports.sendMessage = async (req, res) => {
 
     const { receiver_id, message } = req.body;
 
+    let file_url = null;
+    let file_name = null;
+    let file_type = null;
+
+    if(req.file){
+
+    const fileName =
+    `${Date.now()}-${req.file.originalname}`;
+
+    const { error } =
+    await supabase.storage
+    .from("message-files")
+    .upload(
+
+        fileName,
+
+        req.file.buffer,
+
+        {
+
+            contentType:
+            req.file.mimetype
+
+        }
+
+    );
+
+    if(error){
+
+        return res.status(500).json({
+
+            error:error.message
+
+        });
+
+    }
+
+    const { data } =
+    supabase.storage
+    .from("message-files")
+    .getPublicUrl(fileName);
+
+    file_url =
+    data.publicUrl;
+
+    file_name =
+    req.file.originalname;
+
+    file_type =
+    req.file.mimetype;
+
+}
+
     try {
 
         const result = await pool.query(
@@ -20,17 +74,23 @@ exports.sendMessage = async (req, res) => {
             (
                 sender_id,
                 receiver_id,
-                message
+                message,
+                file_url,
+                file_name,
+                file_type
             )
             VALUES
-            ($1,$2,$3)
+            ($1,$2,$3,$4,$5,$6)
             RETURNING *
             `,
             [
                 req.user.id,
                 
                 receiver_id,
-                message
+                message,
+                file_url,
+                file_name,
+                file_type
             ]
         );
 
