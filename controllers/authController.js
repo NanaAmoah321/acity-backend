@@ -290,17 +290,15 @@ exports.getProfile = async (req, res) => {
 
 exports.updateProfile = async (req, res) => {
 
-    const {
+    try{
 
-        name,
-        level,
-        bio
+        const {
+            name,
+            level,
+            bio
+        } = req.body;
 
-    } = req.body;
-
-    try {
-
-        const result = await pool.query(
+        const user = await pool.query(
 
             `
             UPDATE users
@@ -308,9 +306,7 @@ exports.updateProfile = async (req, res) => {
             SET
 
                 name = $1,
-
                 level = $2,
-
                 bio = $3
 
             WHERE id = $4
@@ -318,43 +314,29 @@ exports.updateProfile = async (req, res) => {
             RETURNING
 
                 id,
-
                 name,
-
                 email,
-
-                department,
-
-                level,
-
-                bio,
-
-                profile_picture,
-
                 role,
-
+                department,
+                level,
+                bio,
+                profile_picture,
                 verified
+
             `,
 
             [
-
                 name,
-
                 level,
-
                 bio,
-
                 req.user.id
-
             ]
 
         );
 
-        res.json(result.rows[0]);
+        res.json(user.rows[0]);
 
-    } catch (err) {
-
-        console.error(err);
+    }catch(err){
 
         res.status(500).json({
 
