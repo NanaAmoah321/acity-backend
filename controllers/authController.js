@@ -287,3 +287,81 @@ exports.getProfile = async (req, res) => {
     });
   }
 };
+
+exports.updateProfile = async (req, res) => {
+
+    const {
+
+        name,
+        level,
+        bio
+
+    } = req.body;
+
+    try {
+
+        const result = await pool.query(
+
+            `
+            UPDATE users
+
+            SET
+
+                name = $1,
+
+                level = $2,
+
+                bio = $3
+
+            WHERE id = $4
+
+            RETURNING
+
+                id,
+
+                name,
+
+                email,
+
+                department,
+
+                level,
+
+                bio,
+
+                profile_picture,
+
+                role,
+
+                verified
+            `,
+
+            [
+
+                name,
+
+                level,
+
+                bio,
+
+                req.user.id
+
+            ]
+
+        );
+
+        res.json(result.rows[0]);
+
+    } catch (err) {
+
+        console.error(err);
+
+        res.status(500).json({
+
+            error: err.message
+
+        });
+
+    }
+
+};
