@@ -1080,16 +1080,45 @@ exports.getSellerOrders = async (req, res) => {
 
 exports.updateOrderStatus = async (req, res) => {
 
-    const { id } =
-    req.params;
-
-    const { status } =
-    req.body;
+    const { id } = req.params;
+    const { status } = req.body;
 
     try {
 
-        const result =
-        await pool.query(
+        const order = await pool.query(
+
+            `
+            SELECT *
+
+            FROM orders
+
+            WHERE id = $1
+            `,
+
+            [id]
+
+        );
+
+        if(order.rows.length === 0){
+
+            return res.status(404).json({
+                error: "Order not found"
+            });
+
+        }
+
+        const currentOrder = order.rows[0];
+
+        if(currentOrder.seller_id !== req.user.id){
+
+            return res.status(403).json({
+                error: "Unauthorized"
+            });
+
+        }
+
+        const result = await pool.query(
+
             `
             UPDATE orders
 
@@ -1099,24 +1128,48 @@ exports.updateOrderStatus = async (req, res) => {
 
             RETURNING *
             `,
+
             [
                 status,
                 id
             ]
+
         );
 
+        if(status === "accepted"){
+
+            await pool.query(
+
+                `
+                UPDATE listings
+
+                SET status = 'sold'
+
+                WHERE id = $1
+                `,
+
+                [currentOrder.listing_id]
+
+            );
+
+        }
+
         res.json({
-            message:
-            "Order updated",
-            order:
-            result.rows[0]
+
+            message: "Order updated",
+
+            order: result.rows[0]
+
         });
 
-    } catch(err) {
+    } catch(err){
+
+        console.error(err);
 
         res.status(500).json({
-            error:
-            err.message
+
+            error: err.message
+
         });
 
     }
