@@ -1110,13 +1110,12 @@ listing_id
 
 exports.getSellerOrders = async (req, res) => {
 
-    const seller_id =
-    req.user.id;
+    const seller_id = req.user.id;
 
     try {
 
-        const orders =
-        await pool.query(
+        const orders = await pool.query(
+
             `
             SELECT
 
@@ -1140,17 +1139,41 @@ exports.getSellerOrders = async (req, res) => {
 
             ORDER BY orders.created_at DESC
             `,
+
             [seller_id]
+
         );
 
-        res.json(
-            orders.rows
-        );
+        const revenue = orders.rows.reduce((total, order) => {
 
-    } catch(err) {
+            if (
+                order.status === "accepted" ||
+                order.status === "completed"
+            ) {
+
+                return total +
+                    (Number(order.price) * Number(order.quantity));
+
+            }
+
+            return total;
+
+        }, 0);
+
+        res.json({
+
+            orders: orders.rows,
+
+            revenue
+
+        });
+
+    } catch(err){
 
         res.status(500).json({
+
             error: err.message
+
         });
 
     }
