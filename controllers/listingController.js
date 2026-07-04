@@ -169,6 +169,8 @@ exports.getListings = async (req, res) => {
       LEFT JOIN reviews
       ON reviews.reviewed_user_id = users.id
 
+      WHERE listings.status <> 'archived'
+
       GROUP BY
         listings.id,
         users.name
@@ -247,7 +249,7 @@ exports.getUserListings = async (req, res) => {
 
   try {
     const result = await pool.query(
-      "SELECT * FROM listings WHERE user_id = $1 ORDER BY created_at DESC",
+      "SELECT * FROM listings WHERE user_id = $1 AND status <> 'archived' ORDER BY created_at DESC",
       [user_id]
     );
 
@@ -338,24 +340,101 @@ exports.updateListing = async (req, res) => {
    }
 };
 exports.deleteListing = async (req, res) => {
-  const { id } = req.params;
-  const user_id = req.user.id;
 
-  try {
-    const result = await pool.query(
-      "DELETE FROM listings WHERE id = $1 AND user_id = $2 RETURNING *",
-      [id, user_id]
-    );
+    const { id } = req.params;
+    const user_id = req.user.id;
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: "Listing not found or unauthorized" });
+    try {
+
+        const orders = await pool.query(
+
+            `
+            SELECT id
+
+            FROM orders
+
+            WHERE listing_id = $1
+            `,
+
+            [id]
+
+        );
+
+        if(orders.rows.length > 0){
+
+            await pool.query(
+
+                `
+                UPDATE listings
+
+                SET status = 'archived'
+
+                WHERE id = $1
+                AND user_id = $2
+                `,
+
+                [
+                    id,
+                    user_id
+                ]
+
+            );
+
+            return res.json({
+
+                message:
+                "Listing archived because it has existing orders."
+
+            });
+
+        }
+
+        const result = await pool.query(
+
+            `
+            DELETE FROM listings
+
+            WHERE id = $1
+            AND user_id = $2
+
+            RETURNING *
+            `,
+
+            [
+                id,
+                user_id
+            ]
+
+        );
+
+        if(result.rows.length === 0){
+
+            return res.status(404).json({
+
+                message:
+                "Listing not found."
+
+            });
+
+        }
+
+        res.json({
+
+            message:
+            "Listing deleted."
+
+        });
+
+    } catch(err){
+
+        res.status(500).json({
+
+            error: err.message
+
+        });
+
     }
 
-    res.json({ message: "Listing deleted" });
-
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
 };
 
 exports.addInterest = async (req, res) => {
