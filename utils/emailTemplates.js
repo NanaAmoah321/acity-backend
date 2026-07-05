@@ -104,7 +104,7 @@ function welcomeTemplate(name) {
                                 >
 
                                     <a
-                                        href="https://nanaamoah321.github.io/acity-frontend"
+                                        href="${process.env.FRONTEND_URL}"
                                         style="
                                             display:inline-block;
                                             padding:16px 36px;
@@ -304,7 +304,7 @@ function messageTemplate(receiverName, senderName, message){
             </div>
 
             <a
-                href="https://nanaamoah321.github.io/acity-frontend/inbox.html"
+                href="${process.env.FRONTEND_URL}/inbox.html"
                 style="
                     display:inline-block;
                     background:#ff2d2d;
