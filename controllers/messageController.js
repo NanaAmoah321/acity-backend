@@ -269,30 +269,35 @@ exports.getConversation = async (req, res) => {
         const result = await pool.query(
             `
             SELECT
-                messages.*,
+    messages.*,
 
-                users.name AS sender_name
+    sender.name AS sender_name,
 
-            FROM messages
+    receiver.name AS receiver_name
 
-            JOIN users
-            ON users.id = messages.sender_id
+FROM messages
 
-            WHERE
+JOIN users sender
+ON sender.id = messages.sender_id
 
-            (
-                sender_id = $1
-                AND receiver_id = $2
-            )
+JOIN users receiver
+ON receiver.id = messages.receiver_id
 
-            OR
+WHERE
 
-            (
-                sender_id = $2
-                AND receiver_id = $1
-            )
+(
+    sender_id = $1
+    AND receiver_id = $2
+)
 
-            ORDER BY created_at ASC
+OR
+
+(
+    sender_id = $2
+    AND receiver_id = $1
+)
+
+ORDER BY created_at ASC
             `,
             [
                 req.user.id,
