@@ -525,6 +525,10 @@ SELECT
 
     listings.*,
 
+    users.id AS seller_id,
+
+    users.name AS seller_name,
+
     interests.quantity,
 
     orders.status AS order_status
@@ -533,6 +537,9 @@ FROM interests
 
 JOIN listings
 ON interests.listing_id = listings.id
+
+JOIN users
+ON users.id = listings.user_id
 
 LEFT JOIN orders
 ON orders.listing_id = listings.id
