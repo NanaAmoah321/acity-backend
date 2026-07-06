@@ -2,6 +2,9 @@ const pool = require("../config/db");
 const { createNotification } = require("../utils/notifications");
 const { sendEmail } = require("../utils/email");
 const supabase = require("../config/supabase");
+const {
+    validateListing
+} = require("../utils/validators");
 
 const {
     buyerOrderTemplate,
@@ -20,6 +23,27 @@ exports.createListing = async (req, res) => {
         stock_quantity
 
     } = req.body;
+
+    const validationError =
+validateListing({
+
+    title,
+    description,
+    category,
+    price,
+    stock_quantity
+
+});
+
+if(validationError){
+
+    return res.status(400).json({
+
+        error: validationError
+
+    });
+
+}
 
     const user_id = req.user.id;
 
@@ -270,14 +294,35 @@ exports.updateListing = async (req, res) => {
     status
   } = req.body;
 
+  const validationError =
+validateListing({
+
+    title,
+    description,
+    category,
+    price,
+    stock_quantity
+
+});
+
+if(validationError){
+
+    return res.status(400).json({
+
+        error: validationError
+
+    });
+
+}
+
   const user_id = req.user.id;
 
   try {
 
-    console.log("REQ USER:", req.user);
+    
     console.log("USER ID:", user_id);
     console.log("LISTING ID:", id);
-    console.log("BODY:", req.body);
+    
 
     const result = await pool.query(
     `
@@ -314,11 +359,11 @@ exports.updateListing = async (req, res) => {
     ]
     );
 
-    console.log("UPDATED ROWS:", result.rows);
+    
 
     if (result.rows.length === 0) {
-      return res.status(404).json({
-        message: "Listing not found or unauthorized"
+      return res.status(403).json({
+        message: "You are not authorized to modify this listing"
       });
     }
 
@@ -409,10 +454,10 @@ exports.deleteListing = async (req, res) => {
 
         if(result.rows.length === 0){
 
-            return res.status(404).json({
+            return res.status(403).json({
 
                 message:
-                "Listing not found."
+                "You are not authorized to modify this listing."
 
             });
 
