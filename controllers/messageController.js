@@ -216,6 +216,36 @@ if(
 
 };
 
+exports.getInbox = async (req, res) => {
+
+    try {
+
+        const result = await pool.query(
+            `
+            SELECT
+                messages.*,
+                users.name AS sender_name
+            FROM messages
+            JOIN users
+            ON messages.sender_id = users.id
+            WHERE receiver_id = $1
+            ORDER BY created_at DESC
+            `,
+            [req.user.id]
+        );
+
+        res.json(result.rows);
+
+    } catch (err) {
+
+        res.status(500).json({
+            error: err.message
+        });
+
+    }
+
+};
+
 exports.getConversations = async (req, res) => {
 
     try {
