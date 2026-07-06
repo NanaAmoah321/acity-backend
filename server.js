@@ -27,6 +27,10 @@ const io = new Server(server,{
 });
 
 app.set("io", io);
+app.set(
+    "onlineUsers",
+    onlineUsers
+);
 
 app.use(cors());
 app.use(express.json());
@@ -146,6 +150,7 @@ setInterval(
 
 deleteOldSoldListings();
 
+const onlineUsers = new Map();
 io.on("connection",(socket)=>{
 
     console.log(
@@ -155,18 +160,26 @@ io.on("connection",(socket)=>{
 
     socket.on("join",(userId)=>{
 
-        socket.join(
-            `user_${userId}`
-        );
+      socket.userId = userId;
+
+      socket.join(`user_${userId}`);
+
+      onlineUsers.set(
+        userId,
+        socket.id
+      );
 
     });
 
     socket.on("disconnect",()=>{
 
-        console.log(
-            "Socket disconnected:",
-            socket.id
+      if(socket.userId){
+
+        onlineUsers.delete(
+            socket.userId
         );
+
+      }
 
     });
 

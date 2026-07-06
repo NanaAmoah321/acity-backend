@@ -119,88 +119,92 @@ exports.sendMessage = async (req, res) => {
         console.log("Sender ID:", req.user.id);
         console.log("Related ID being saved:", req.user.id);
 
-        await createNotification(
-            receiver_id,
-            "New Message",
-            `${sender.rows[0].name}: "${message.substring(0,50)}${message.length > 50 ? "..." : ""}"`,
-            "message",
-            null,
-            null,
-            req.user.id
-        );
+        const io =
+req.app.get("io");
 
-        await sendEmail(
-
-            receiver.rows[0].email,
-
-            `💬 New message from ${sender.rows[0].name}`,
-
-            messageTemplate(
-
-                receiver.rows[0].name,
-
-                sender.rows[0].name,
-
-                message
-
-            )
-
-        );
-
-        const io = req.app.get("io");
+const onlineUsers =
+req.app.get("onlineUsers");
 
 const socketMessage = {
 
     ...result.rows[0],
 
-    sender_name: sender.rows[0].name
+    sender_name:
+    sender.rows[0].name
 
 };
 
-// Receiver gets it
-io.to(`user_${receiver_id}`).emit(
+/* Receiver */
+
+io.to(
+    `user_${receiver_id}`
+).emit(
     "new_message",
     socketMessage
 );
 
-// Sender also gets it
-io.to(`user_${req.user.id}`).emit(
+/* Sender */
+
+io.to(
+    `user_${req.user.id}`
+).emit(
     "new_message",
     socketMessage
 );
 
-         
-        res.json(result.rows[0]);
+/* Return immediately */
 
-    } catch (err) {
+res.json(result.rows[0]);
 
-        res.status(500).json({
-            error: err.message
-        });
+/* Notification */
 
-    }
+await createNotification(
 
-};
+    receiver_id,
 
-exports.getInbox = async (req, res) => {
+    "New Message",
 
-    try {
+    `${sender.rows[0].name}: "${message.substring(0,50)}${message.length > 50 ? "..." : ""}"`,
 
-        const result = await pool.query(
-            `
-            SELECT
-                messages.*,
-                users.name AS sender_name
-            FROM messages
-            JOIN users
-            ON messages.sender_id = users.id
-            WHERE receiver_id = $1
-            ORDER BY created_at DESC
-            `,
-            [req.user.id]
-        );
+    "message",
 
-        res.json(result.rows);
+    null,
+
+    null,
+
+    req.user.id
+
+);
+
+/* Email only if offline */
+
+if(
+
+    !onlineUsers.has(
+        Number(receiver_id)
+    )
+
+){
+
+    await sendEmail(
+
+        receiver.rows[0].email,
+
+        `💬 New message from ${sender.rows[0].name}`,
+
+        messageTemplate(
+
+            receiver.rows[0].name,
+
+            sender.rows[0].name,
+
+            message
+
+        )
+
+    );
+
+}
 
     } catch (err) {
 
