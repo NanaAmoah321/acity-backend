@@ -149,19 +149,25 @@ exports.sendMessage = async (req, res) => {
 
         const io = req.app.get("io");
 
-        io.to(`user_${receiver_id}`).emit(
+const socketMessage = {
 
-            "new_message",
+    ...result.rows[0],
 
-            {
+    sender_name: sender.rows[0].name
 
-                ...result.rows[0],
+};
 
-                sender_name: sender.rows[0].name
+// Receiver gets it
+io.to(`user_${receiver_id}`).emit(
+    "new_message",
+    socketMessage
+);
 
-            }
-
-        );
+// Sender also gets it
+io.to(`user_${req.user.id}`).emit(
+    "new_message",
+    socketMessage
+);
 
          
         res.json(result.rows[0]);
