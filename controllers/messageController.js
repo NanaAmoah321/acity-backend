@@ -147,10 +147,24 @@ exports.sendMessage = async (req, res) => {
 
         );
 
-        
-        
-        
-    res.json(result.rows[0]);
+        const io = req.app.get("io");
+
+        io.to(`user_${receiver_id}`).emit(
+
+            "new_message",
+
+            {
+
+                ...result.rows[0],
+
+                sender_name: sender.rows[0].name
+
+            }
+
+        );
+
+         
+        res.json(result.rows[0]);
 
     } catch (err) {
 

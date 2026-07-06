@@ -22,7 +22,8 @@
     "multer": "^2.2.0",
     "nodemailer": "^9.0.1",
     "pg": "^8.20.0",
-    "resend": "^6.16.0"
+    "resend": "^6.16.0",
+    "socket.io": "^4.8.3"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
