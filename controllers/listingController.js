@@ -5,7 +5,9 @@ const supabase = require("../config/supabase");
 const {
     validateListing
 } = require("../utils/validators");
-
+const {
+    validateOrder
+} = require("../utils/validators");
 const {
     buyerOrderTemplate,
     sellerOrderTemplate
@@ -958,6 +960,27 @@ exports.createOrder = async (req, res) => {
         room_number,
         meeting_location
     } = req.body;
+
+    const validationError =
+validateOrder({
+
+    quantity,
+
+    delivery_method,
+
+    room_number
+
+});
+
+if(validationError){
+
+    return res.status(400).json({
+
+        error: validationError
+
+    });
+
+}
 
     try {
 

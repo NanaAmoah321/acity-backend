@@ -1,5 +1,9 @@
 const pool = require("../config/db");
 
+const {
+    validateReview
+} = require("../utils/validators");
+
 exports.createReview = async (req, res) => {
 
     const {
@@ -7,6 +11,24 @@ exports.createReview = async (req, res) => {
         rating,
         comment
     } = req.body;
+
+    const validationError =
+validateReview({
+
+    rating,
+    comment
+
+});
+
+if(validationError){
+
+    return res.status(400).json({
+
+        error: validationError
+
+    });
+
+}
 
     try {
 
@@ -79,6 +101,8 @@ exports.createReview = async (req, res) => {
         });
 
     }
+
+
 
 };
 

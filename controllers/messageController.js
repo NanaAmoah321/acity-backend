@@ -2,7 +2,9 @@ const pool = require("../config/db");
 const { createNotification } = require("../utils/notifications");
 const { sendEmail } = require("../utils/email");
 const supabase = require("../config/supabase");
-
+const {
+    validateMessage
+} = require("../utils/validators");
 const {
     messageTemplate
 } = require("../utils/emailTemplates");
@@ -12,6 +14,23 @@ exports.sendMessage = async (req, res) => {
     
 
     const { receiver_id, message } = req.body;
+
+    const validationError =
+validateMessage({
+
+    message
+
+});
+
+if(validationError){
+
+    return res.status(400).json({
+
+        error: validationError
+
+    });
+
+}
 
     let file_url = null;
     let file_name = null;

@@ -1,5 +1,7 @@
 const pool = require("../config/db");
-
+const {
+    validateService
+} = require("../utils/validators");
 exports.createService =
 async (req, res) => {
 
@@ -11,6 +13,26 @@ async (req, res) => {
         rate_type,
         portfolio_url
     } = req.body;
+
+    const validationError =
+validateService({
+
+    title,
+    description,
+    category,
+    rate
+
+});
+
+if(validationError){
+
+    return res.status(400).json({
+
+        error: validationError
+
+    });
+
+}
 
     try {
 
