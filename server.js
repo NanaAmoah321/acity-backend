@@ -26,6 +26,8 @@ const io = new Server(server,{
 
 });
 
+const onlineUsers = new Map();
+
 app.set("io", io);
 app.set(
     "onlineUsers",
@@ -150,7 +152,7 @@ setInterval(
 
 deleteOldSoldListings();
 
-const onlineUsers = new Map();
+
 io.on("connection",(socket)=>{
 
     console.log(
