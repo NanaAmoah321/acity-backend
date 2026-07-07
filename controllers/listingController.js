@@ -160,7 +160,8 @@ await pool.query(
     SELECT
         id,
         name,
-        email
+        email,
+        unsubscribe_token
 
     FROM users
 
@@ -180,7 +181,9 @@ await pool.query(
 
         users.name,
 
-        users.email
+        users.email,
+
+        users.unsubscribe_token
 
     FROM store_followers
 
@@ -291,7 +294,9 @@ for(const user of recipients.values()){
 
                 seller.rows[0].average_rating,
 
-                seller.rows[0].total_reviews
+                seller.rows[0].total_reviews,
+
+                user.unsubscribe_token
 
             )
 

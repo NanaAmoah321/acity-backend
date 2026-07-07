@@ -410,7 +410,9 @@ const newListingTemplate = (
 
     rating,
 
-    reviews
+    reviews,
+
+    unsubcribeToken
 
 )=>`
 
@@ -608,13 +610,65 @@ border:none;
 border-top:1px solid #eee;
 ">
 
-<p
-style="
-color:#777;
-font-size:13px;
+<hr style="
+border:none;
+border-top:1px solid #eee;
+margin:40px 0 25px;
 ">
 
-You're receiving this email because you subscribed to marketplace updates or follow this seller.
+<p style="
+font-size:13px;
+color:#666;
+text-align:center;
+line-height:1.7;
+">
+
+You're receiving this email because you subscribed to marketplace updates or you follow this seller.
+
+</p>
+
+<div style="
+text-align:center;
+margin-top:25px;
+">
+
+<a
+href="${process.env.FRONTEND_URL}/profile.html"
+style="
+display:inline-block;
+margin-right:15px;
+color:#2563EB;
+text-decoration:none;
+font-weight:bold;
+">
+
+Manage Preferences
+
+</a>
+
+<a
+href="${process.env.BACKEND_URL}/api/email/unsubscribe/${unsubscribeToken}"
+style="
+display:inline-block;
+color:#EF4444;
+text-decoration:none;
+font-weight:bold;
+">
+
+Unsubscribe
+
+</a>
+
+</div>
+
+<p style="
+font-size:12px;
+color:#999;
+margin-top:35px;
+text-align:center;
+">
+
+Acity Connect • Academic City University
 
 </p>
 
@@ -654,7 +708,8 @@ title,
 category,
 rate,
 rateType,
-rating
+rating,
+unsubcribeToken
 
 )=>`
 
