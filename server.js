@@ -8,13 +8,13 @@ const pool = require("./config/db");
 
 const listingRoutes = require("./routes/listingRoutes");
 const authRoutes = require("./routes/authRoutes");
-
 const serviceRoutes = require("./routes/serviceRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const followRoutes = require("./routes/followRoutes");
+const emailRoutes = require("./routes/emailRoutes");
 
 const app = express();
 const server = http.createServer(app);
@@ -203,3 +203,10 @@ app.use(
     notificationRoutes
 );
 
+app.use(
+
+    "/api/email",
+
+    emailRoutes
+
+);
