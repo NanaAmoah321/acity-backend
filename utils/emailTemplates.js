@@ -394,7 +394,7 @@ function resetPasswordTemplate(name, resetLink){
 
 }
 
-exports.newListingTemplate = (
+const newListingTemplate = (
 
     receiverName,
 
@@ -440,7 +440,7 @@ Acity Connect Marketplace
 
 `;
 
-exports.newServiceTemplate = (
+const newServiceTemplate = (
 
     receiverName,
 
@@ -504,6 +504,10 @@ module.exports = {
 
     messageTemplate,
 
-    resetPasswordTemplate
+    resetPasswordTemplate,
+
+    newListingTemplate,
+
+    newServiceTemplate
 
 };

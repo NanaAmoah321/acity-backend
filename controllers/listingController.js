@@ -243,25 +243,47 @@ await pool.query(
 
 for(const user of recipients.values()){
 
-    await sendEmail(
+    if(!user.email){
 
-        user.email,
+        continue;
 
-        "🛒 New Marketplace Listing",
+    }
 
-        newListingTemplate(
+    try{
 
-            user.name,
+        await sendEmail(
 
-            seller.rows[0].name,
+            user.email,
 
-            newListing.rows[0].title,
+            "🛒 New Marketplace Listing",
 
-            newListing.rows[0].category
+            newListingTemplate(
 
-        )
+                user.name,
 
-    );
+                seller.rows[0].name,
+
+                newListing.rows[0].title,
+
+                newListing.rows[0].category
+
+            )
+
+        );
+
+    }catch(err){
+
+        console.error(
+
+            "Email failed:",
+
+            user.email,
+
+            err.message
+
+        );
+
+    }
 
 }
 
