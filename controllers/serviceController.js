@@ -2,6 +2,10 @@ const pool = require("../config/db");
 const {
     validateService
 } = require("../utils/validators");
+
+const { sendEmail } =
+require("../utils/email");
+
 const {
 
     newServiceTemplate
