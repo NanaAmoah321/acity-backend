@@ -394,6 +394,104 @@ function resetPasswordTemplate(name, resetLink){
 
 }
 
+exports.newListingTemplate = (
+
+    receiverName,
+
+    sellerName,
+
+    title,
+
+    category
+
+)=>`
+
+<h2>Hello ${receiverName},</h2>
+
+<p>
+
+<b>${sellerName}</b>
+
+just posted a new
+
+<b>${category}</b>.
+
+</p>
+
+<h3>
+
+${title}
+
+</h3>
+
+<p>
+
+Visit Acity Connect to view it before it's gone.
+
+</p>
+
+<hr>
+
+<p>
+
+Acity Connect Marketplace
+
+</p>
+
+`;
+
+exports.newServiceTemplate = (
+
+    receiverName,
+
+    providerName,
+
+    title,
+
+    category
+
+)=>`
+
+<h2>Hello ${receiverName},</h2>
+
+<p>
+
+<b>${providerName}</b>
+
+just posted a new service.
+
+</p>
+
+<h3>
+
+${title}
+
+</h3>
+
+<p>
+
+Category:
+
+<b>${category}</b>
+
+</p>
+
+<p>
+
+Visit Acity Connect to learn more.
+
+</p>
+
+<hr>
+
+<p>
+
+Acity Connect Services
+
+</p>
+
+`;
+
 
 
 module.exports = {

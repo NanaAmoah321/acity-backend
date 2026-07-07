@@ -10,7 +10,8 @@ const {
 } = require("../utils/validators");
 const {
     buyerOrderTemplate,
-    sellerOrderTemplate
+    sellerOrderTemplate,
+    newListingTemplate
 } = require("../utils/emailTemplates");
 
 
@@ -151,6 +152,118 @@ if(validationError){
             ]
 
         );
+
+        const subscribers =
+await pool.query(
+
+    `
+    SELECT
+        id,
+        name,
+        email
+
+    FROM users
+
+    WHERE
+
+    receive_marketplace_updates = TRUE
+    `
+);
+
+const followers =
+await pool.query(
+
+    `
+    SELECT
+
+        users.id,
+
+        users.name,
+
+        users.email
+
+    FROM store_followers
+
+    JOIN users
+
+    ON users.id =
+    store_followers.follower_id
+
+    WHERE
+
+    following_user_id = $1
+    `,
+
+    [
+
+        req.user.id
+
+    ]
+
+);
+
+const recipients =
+new Map();
+
+[
+    ...subscribers.rows,
+
+    ...followers.rows
+
+].forEach(user=>{
+
+    recipients.set(
+
+        user.id,
+
+        user
+
+    );
+
+});
+
+const seller =
+await pool.query(
+
+    `
+    SELECT name
+
+    FROM users
+
+    WHERE id = $1
+    `,
+
+    [
+
+        req.user.id
+
+    ]
+
+);
+
+for(const user of recipients.values()){
+
+    await sendEmail(
+
+        user.email,
+
+        "🛒 New Marketplace Listing",
+
+        newListingTemplate(
+
+            user.name,
+
+            seller.rows[0].name,
+
+            newListing.rows[0].title,
+
+            newListing.rows[0].category
+
+        )
+
+    );
+
+}
 
         res.json(newListing.rows[0]);
 
