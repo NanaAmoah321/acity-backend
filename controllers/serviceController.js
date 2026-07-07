@@ -142,44 +142,60 @@ new Map();
 
 });
 
-const provider =
-await pool.query(
+const provider = await pool.query(
+`
+SELECT
 
-    `
-    SELECT name
+    users.name,
 
-    FROM users
+    COALESCE(
+        ROUND(AVG(reviews.rating),1),
+        0
+    ) AS average_rating,
 
-    WHERE id = $1
-    `,
+    COUNT(reviews.id) AS total_reviews
 
-    [
+FROM users
 
-        req.user.id
+LEFT JOIN reviews
+ON reviews.reviewed_user_id = users.id
 
-    ]
+WHERE users.id = $1
 
+GROUP BY
+users.id,
+users.name
+`,
+[
+    req.user.id
+]
 );
 
 for(const user of recipients.values()){
 
     await sendEmail(
 
-        user.email,
+    user.email,
 
-        "🛠️ New Service Available",
+    `🛠️ ${provider.rows[0].name} is offering "${result.rows[0].title}"`,
 
-        newServiceTemplate(
+    newServiceTemplate(
 
-            user.name,
+        user.name,
 
-            provider.rows[0].name,
+        provider.rows[0].name,
 
-            result.rows[0].title,
+        result.rows[0].title,
 
-            result.rows[0].category
+        result.rows[0].category,
 
-        )
+        result.rows[0].rate,
+
+        result.rows[0].rate_type,
+
+        provider.rows[0].average_rating
+
+    )
 
     );
 
