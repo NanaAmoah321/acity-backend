@@ -402,96 +402,480 @@ const newListingTemplate = (
 
     title,
 
-    category
+    category,
+
+    price,
+
+    image,
+
+    rating,
+
+    reviews
 
 )=>`
 
-<h2>Hello ${receiverName},</h2>
+<!DOCTYPE html>
 
-<p>
+<html>
 
-<b>${sellerName}</b>
+<body style="
+margin:0;
+padding:0;
+background:#f4f7fb;
+font-family:Arial,Helvetica,sans-serif;
+">
 
-just posted a new
+<table
+width="100%"
+cellpadding="0"
+cellspacing="0"
+>
 
-<b>${category}</b>.
+<tr>
+
+<td align="center">
+
+<table
+width="650"
+cellpadding="0"
+cellspacing="0"
+style="
+background:#ffffff;
+margin:40px 0;
+border-radius:22px;
+overflow:hidden;
+box-shadow:0 18px 50px rgba(0,0,0,.08);
+">
+
+<tr>
+
+<td
+style="
+background:#EF4444;
+padding:40px;
+text-align:center;
+color:white;
+">
+
+<h1 style="margin:0;">
+
+🎓 Acity Connect
+
+</h1>
+
+<p style="margin-top:12px;">
+
+A new marketplace listing is waiting for you.
 
 </p>
 
-<h3>
+</td>
+
+</tr>
+
+<tr>
+
+<td style="padding:45px;">
+
+<h2>
+
+Hello ${receiverName} 👋
+
+</h2>
+
+<p>
+
+<strong>${sellerName}</strong>
+
+just posted something new.
+
+</p>
+
+<table
+width="100%"
+style="
+border:1px solid #eee;
+border-radius:18px;
+overflow:hidden;
+margin:35px 0;
+">
+
+<tr>
+
+<td>
+
+<img
+
+src="${image || `${process.env.FRONTEND_URL}/images/${category}.jpg`}"
+
+width="100%"
+
+style="
+display:block;
+max-height:280px;
+object-fit:cover;
+">
+
+</td>
+
+</tr>
+
+<tr>
+
+<td style="padding:28px;">
+
+<div
+style="
+display:inline-block;
+background:#FEE2E2;
+padding:8px 18px;
+border-radius:40px;
+color:#DC2626;
+font-weight:bold;
+font-size:13px;
+">
+
+${category}
+
+</div>
+
+<h2 style="margin:20px 0 10px;">
 
 ${title}
 
-</h3>
+</h2>
 
-<p>
+<p
+style="
+font-size:28px;
+font-weight:bold;
+color:#EF4444;
+margin:0;
+">
 
-Visit Acity Connect to view it before it's gone.
+GH₵${price}
+
+</p>
+
+<p
+style="
+margin-top:20px;
+color:#666;
+">
+
+⭐ ${rating}
+
+(${reviews} reviews)
 
 </p>
 
-<hr>
+</td>
 
-<p>
+</tr>
 
-Acity Connect Marketplace
+</table>
+
+<div
+style="
+text-align:center;
+margin:40px 0;
+">
+
+<a
+
+href="${process.env.FRONTEND_URL}/marketplace.html"
+
+style="
+display:inline-block;
+padding:18px 42px;
+background:#EF4444;
+color:white;
+text-decoration:none;
+border-radius:999px;
+font-size:16px;
+font-weight:bold;
+">
+
+View Listing →
+
+</a>
+
+</div>
+
+<hr
+style="
+border:none;
+border-top:1px solid #eee;
+">
+
+<p
+style="
+color:#777;
+font-size:13px;
+">
+
+You're receiving this email because you subscribed to marketplace updates or follow this seller.
 
 </p>
+
+<p
+style="
+font-size:12px;
+color:#999;
+">
+
+Acity Connect • Academic City University
+
+</p>
+
+</td>
+
+</tr>
+
+</table>
+
+</td>
+
+</tr>
+
+</table>
+
+</body>
+
+</html>
 
 `;
 
 const newServiceTemplate = (
 
-    receiverName,
-
-    providerName,
-
-    title,
-
-    category
+receiverName,
+providerName,
+title,
+category,
+rate,
+rateType,
+rating
 
 )=>`
 
-<h2>Hello ${receiverName},</h2>
+<!DOCTYPE html>
+
+<html>
+
+<body style="
+margin:0;
+padding:0;
+background:#f4f7fb;
+font-family:Arial;
+">
+
+<table width="100%">
+
+<tr>
+
+<td align="center">
+
+<table
+width="650"
+style="
+background:white;
+margin:40px 0;
+border-radius:20px;
+overflow:hidden;
+box-shadow:0 15px 45px rgba(0,0,0,.08);
+"
+>
+
+<tr>
+
+<td
+style="
+background:#2563EB;
+padding:40px;
+text-align:center;
+color:white;
+"
+>
+
+<h1>
+
+🛠 Acity Connect
+
+</h1>
+
+<p style="
+margin-top:12px;
+font-size:16px;
+opacity:.95;
+">
+
+${providerName} just listed a new service
+
+</p>
+
+</td>
+
+</tr>
+
+<tr>
+
+<td style="padding:45px;">
+
+<h2>
+
+Hello ${receiverName} 
+
+</h2>
 
 <p>
 
-<b>${providerName}</b>
+<strong>${providerName}</strong>
 
 just posted a new service.
 
 </p>
 
-<h3>
+<div style="
+background:#F8FAFC;
+padding:25px;
+border-radius:16px;
+border:1px solid #E5E7EB;
+margin:35px 0;
+">
+
+<div
+style="
+display:inline-block;
+background:#DBEAFE;
+color:#2563EB;
+padding:6px 14px;
+border-radius:999px;
+font-weight:bold;
+margin-bottom:18px;
+"
+>
+
+${category}
+
+</div>
+<h2 style="
+margin:18px 0 10px;
+">
 
 ${title}
 
-</h3>
+</h2>
 
-<p>
+<p style="
+font-size:28px;
+font-weight:bold;
+color:#2563EB;
+margin:0;
+">
 
-Category:
+GH₵${rate}
 
-<b>${category}</b>
+<span style="
+font-size:15px;
+font-weight:normal;
+color:#666;
+">
+
+/ ${rateType}
+
+</span>
 
 </p>
 
-<p>
+<p style="
+margin-top:20px;
+color:#666;
+">
 
-Visit Acity Connect to learn more.
+⭐ ${rating}
+
+</p>
+
+<p style="
+margin-top:18px;
+line-height:1.6;
+color:#555;
+">
+
+Find out more and contact the provider directly through Acity Connect.
 
 </p>
 
-<hr>
+</div>
 
-<p>
+<div style="text-align:center;">
 
-Acity Connect Services
+<a
+href="${process.env.FRONTEND_URL}/services.html"
+style="
+display:inline-block;
+background:#2563EB;
+color:white;
+padding:18px 40px;
+border-radius:999px;
+text-decoration:none;
+font-weight:bold;
+"
+>
+
+View Service →
+
+</a>
+
+</div>
+
+<hr
+style="
+border:none;
+border-top:1px solid #eee;
+margin:40px 0;
+"
+>
+
+<p
+style="
+font-size:13px;
+color:#777;
+"
+>
+
+You're receiving this email because you subscribed to service updates or follow this provider.
 
 </p>
+
+<p
+style="
+font-size:12px;
+color:#999;
+"
+>
+
+Acity Connect • Academic City University
+
+</p>
+
+</td>
+
+</tr>
+
+</table>
+
+</td>
+
+</tr>
+
+</table>
+
+</body>
+
+</html>
 
 `;
-
 
 
 module.exports = {

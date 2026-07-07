@@ -225,19 +225,37 @@ new Map();
 const seller =
 await pool.query(
 
-    `
-    SELECT name
+`
+SELECT
 
-    FROM users
+    users.name,
 
-    WHERE id = $1
-    `,
+    COALESCE(
+        ROUND(AVG(reviews.rating),1),
+        0
+    ) AS average_rating,
 
-    [
+    COUNT(reviews.id)
+    AS total_reviews
 
-        req.user.id
+FROM users
 
-    ]
+LEFT JOIN reviews
+
+ON reviews.reviewed_user_id = users.id
+
+WHERE users.id = $1
+
+GROUP BY
+
+users.id,
+
+users.name
+`,
+
+[
+    req.user.id
+]
 
 );
 
@@ -265,7 +283,15 @@ for(const user of recipients.values()){
 
                 newListing.rows[0].title,
 
-                newListing.rows[0].category
+                newListing.rows[0].category,
+
+                newListing.rows[0].price,
+
+                newListing.rows[0].image_url,
+
+                seller.rows[0].average_rating,
+
+                seller.rows[0].total_reviews
 
             )
 
