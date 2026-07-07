@@ -264,6 +264,45 @@ users.name
 
 for(const user of recipients.values()){
 
+    await pool.query(
+
+        `
+        INSERT INTO email_queue
+        (
+
+            user_id,
+
+            seller_id,
+
+            listing_id,
+
+            type
+
+        )
+
+        VALUES
+
+        ($1,$2,$3,$4)
+        `,
+
+        [
+
+            user.id,
+
+            req.user.id,
+
+            newListing.rows[0].id,
+
+            "listing"
+
+        ]
+
+    );
+
+}
+
+/*for(const user of recipients.values()){
+
     if(!user.email){
 
         continue;
@@ -316,7 +355,7 @@ for(const user of recipients.values()){
 
     }
 
-}
+}*/
 
         res.json(newListing.rows[0]);
 

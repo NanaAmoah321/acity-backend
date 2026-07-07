@@ -176,6 +176,45 @@ users.name
 
 for(const user of recipients.values()){
 
+    await pool.query(
+
+        `
+        INSERT INTO email_queue
+        (
+
+            user_id,
+
+            seller_id,
+
+            service_id,
+
+            type
+
+        )
+
+        VALUES
+
+        ($1,$2,$3,$4)
+        `,
+
+        [
+
+            user.id,
+
+            req.user.id,
+
+            result.rows[0].id,
+
+            "service"
+
+        ]
+
+    );
+
+}
+
+/*for(const user of recipients.values()){
+
     await sendEmail(
 
     user.email,
@@ -204,7 +243,7 @@ for(const user of recipients.values()){
 
     );
 
-}
+}*/
 
         res.json(
             result.rows[0]
