@@ -14,6 +14,7 @@ const messageRoutes = require("./routes/messageRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
+const followRoutes = require("./routes/followRoutes");
 
 const app = express();
 const server = http.createServer(app);
@@ -45,7 +46,7 @@ app.use("/api/services", serviceRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/reviews", reviewRoutes);
-
+app.use("/api/follow", followRoutes);
 pool.query("SELECT 1")
   .then(() =>
     console.log(

@@ -8,7 +8,7 @@ const { resetPasswordTemplate } = require("../utils/emailTemplates");
 
 
 exports.register = async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, receive_marketplace_updates } = req.body;
 
   if (
     !email.endsWith("@acity.edu.gh") &&
@@ -33,8 +33,8 @@ exports.register = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = await pool.query(
-      "INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING *",
-      [name, email, hashedPassword]
+      "INSERT INTO users (name, email, password, receive_marketplace_updates) VALUES ($1, $2, $3, $4) RETURNING *",
+      [name, email, hashedPassword, receive_marketplace_updates]
     );
 
     sendEmail(
