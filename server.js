@@ -230,47 +230,9 @@ io.on("connection",(socket)=>{
 const PORT =
 process.env.PORT || 5000;
 
-const rateLimit = require("express-rate-limit");
-
-// 1. Global Baseline Limiter (Your current setup - great for general routes)
-const globalLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 mins
-    max: 300, // Slightly bumped to avoid blocking heavy UI dashboard usage
-    message: { error: "Too many requests from this IP. Please slow down." }
-});
-
-// 2. Strict Limiter for Auth / Security Routes (Login, Register, Forgot Password)
-const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 10, // 10 total attempts (success or failure) per window
-    
-    // Modern Rate-Limiting Headers
-    standardHeaders: true, // Returns standard RateLimit-* headers
-    legacyHeaders: false,  // Disables the old X-RateLimit-* headers
-    
-    keyGenerator: (req) => {
-        return req.user 
-            ? `user_${req.user.id}` 
-            : `ip_${req.ip || 'unknown'}`;
-    },
-    
-    message: {
-        error: "Too many login/registration attempts. Try again in 15 minutes."
-    }
-});
-
-// 3. Medium Limiter for Database-Heavy Operations (Creating Orders, Search, Uploads)
-const resourceLimiter = rateLimit({
-    windowMs: 1 * 60 * 1000,
-    max: 15,
-    // If they are logged in, rate limit by their database ID. Otherwise, fallback to IP.
-    keyGenerator: (req) => {
-        return req.user 
-            ? `user_${req.user.id}` 
-            : `ip_${req.ip || 'unknown'}`;
-    },
-    message: { error: "You are doing that too fast. Please wait a moment." }
-});
+const {
+    globalLimiter
+} = require("./middleware/rateLimiters");
 
 app.use(globalLimiter);
 

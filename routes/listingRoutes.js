@@ -1,5 +1,8 @@
 const express = require("express");
 const router = express.Router();
+const {
+    resourceLimiter
+} = require("../middleware/rateLimiters");
 
 const listingController = require("../controllers/listingController");
 const authMiddleware = require("../middleware/authMiddleware");
