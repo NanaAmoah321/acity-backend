@@ -3,8 +3,8 @@ const router = express.Router();
 const authController = require("../controllers/authController");
 const authMiddleware = require("../middleware/authMiddleware");
 
-router.post("/register", authController.register);
-router.post("/login", authController.login);
+router.post("/register", authLimiter, authController.register);
+router.post("/login", authLimiter, authController.login);
 router.get("/profile", authMiddleware, authController.getProfile);
 router.put(
     "/profile",
@@ -13,6 +13,7 @@ router.put(
 );
 router.post(
     "/forgot-password",
+    authLimiter,
     authController.forgotPassword
 );
 

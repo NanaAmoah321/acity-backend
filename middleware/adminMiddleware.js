@@ -1,12 +1,17 @@
 module.exports = (req, res, next) => {
 
-    if (req.user.role !== "admin") {
+    if(
 
-        return res
-        .status(403)
-        .json({
-            error:
-            "Admins only"
+        !req.user ||
+
+        req.user.role !== "admin"
+
+    ){
+
+        return res.status(403).json({
+
+            error:"Admins only"
+
         });
 
     }

@@ -9,6 +9,7 @@ const upload = require("../middleware/upload");
 router.post(
     "/",
     authMiddleware,
+    resourceLimiter,
     upload.single("image"),
     listingController.createListing
 );
@@ -35,7 +36,7 @@ router.get("/store/:userId",listingController.getStore);
 router.get("/seller-orders", authMiddleware, listingController.getSellerOrders);
 router.put("/orders/:id",authMiddleware,listingController.updateOrderStatus);
 router.get( "/:id", listingController.getListingById);
-router.post("/orders",authMiddleware, listingController.createOrder);
+router.post("/orders",authMiddleware, resourceLimiter, listingController.createOrder);
 router.put(
     "/cart/:listing_id",
     authMiddleware,

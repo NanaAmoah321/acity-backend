@@ -1,4 +1,5 @@
 const express = require("express");
+const helmet = require("helmet");
 const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
@@ -16,13 +17,35 @@ const notificationRoutes = require("./routes/notificationRoutes");
 const followRoutes = require("./routes/followRoutes");
 const emailRoutes = require("./routes/emailRoutes");
 
+
+if(!process.env.JWT_SECRET){
+
+    throw new Error(
+
+        "JWT_SECRET missing"
+
+    );
+
+}
 const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server,{
 
     cors:{
-        origin:"*"
+
+        origin:[
+
+            "https://acityconnect.com",
+
+            "https://www.acityconnect.com"
+
+        ],
+
+        methods:["GET","POST"],
+
+        credentials:true
+
     }
 
 });
@@ -34,9 +57,55 @@ app.set(
     "onlineUsers",
     onlineUsers
 );
+  
+app.use(helmet());
+app.use(cors({
+  origin: [
+    "https://acityconnect.com",
+    "https://www.acityconnect.com",
+  ],
+  credentials: true,
+}));
 
-app.use(cors());
-app.use(express.json());
+app.use(express.json({
+
+    limit:"10mb"
+
+}));
+
+app.use((err,req,res,next)=>{
+
+    if(
+
+        err instanceof require("multer").MulterError
+
+    ){
+
+        return res.status(400).json({
+
+            error:err.message
+
+        });
+
+    }
+
+    if(
+
+        err.message
+
+    ){
+
+        return res.status(400).json({
+
+            error:err.message
+
+        });
+
+    }
+
+    next();
+
+});
 
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/auth", authRoutes);
@@ -60,44 +129,15 @@ pool.query("SELECT 1")
     )
   );
 
-app.get("/test-db", async (req, res) => {
 
-  try {
 
-    const result =
-    await pool.query(
-      "SELECT * FROM users"
-    );
+app.get("/",(req,res)=>{
 
-    res.json(
-      result.rows
-    );
-
-  } catch (err) {
-
-    res.status(500).json({
-      error: err.message
-    });
-
-  }
+    res.sendStatus(404);
 
 });
 
-app.get("/", (req, res) => {
 
-  res.send(
-    "Welcome to Acity Marketplace API"
-  );
-
-});
-
-app.get("/api/test", (req, res) => {
-
-  res.send(
-    "API working"
-  );
-
-});
 
 
 /* ==========================
@@ -190,13 +230,51 @@ io.on("connection",(socket)=>{
 const PORT =
 process.env.PORT || 5000;
 
+const rateLimit = require("express-rate-limit");
+
+// 1. Global Baseline Limiter (Your current setup - great for general routes)
+const globalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 mins
+    max: 300, // Slightly bumped to avoid blocking heavy UI dashboard usage
+    message: { error: "Too many requests from this IP. Please slow down." }
+});
+
+// 2. Strict Limiter for Auth / Security Routes (Login, Register, Forgot Password)
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10, // 10 total attempts (success or failure) per window
+    
+    // Modern Rate-Limiting Headers
+    standardHeaders: true, // Returns standard RateLimit-* headers
+    legacyHeaders: false,  // Disables the old X-RateLimit-* headers
+    
+    keyGenerator: (req) => {
+        return req.user 
+            ? `user_${req.user.id}` 
+            : `ip_${req.ip || 'unknown'}`;
+    },
+    
+    message: {
+        error: "Too many login/registration attempts. Try again in 15 minutes."
+    }
+});
+
+// 3. Medium Limiter for Database-Heavy Operations (Creating Orders, Search, Uploads)
+const resourceLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000,
+    max: 15,
+    // If they are logged in, rate limit by their database ID. Otherwise, fallback to IP.
+    keyGenerator: (req) => {
+        return req.user 
+            ? `user_${req.user.id}` 
+            : `ip_${req.ip || 'unknown'}`;
+    },
+    message: { error: "You are doing that too fast. Please wait a moment." }
+});
+
+app.use(globalLimiter);
 
 
-
-app.use(
-    "/api/notifications",
-    notificationRoutes
-);
 
 app.use(
 

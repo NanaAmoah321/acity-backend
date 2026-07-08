@@ -8,11 +8,14 @@ const { resetPasswordTemplate } = require("../utils/emailTemplates");
 
 
 exports.register = async (req, res) => {
+    
   const { name, email, password, receive_marketplace_updates } = req.body;
+    
+  const normalizedEmail = email?.trim().toLowerCase();
 
   if (
-    !email.endsWith("@acity.edu.gh") &&
-    !email.endsWith("@gmail.com")
+    !normalizedEmail.endsWith("@acity.edu.gh") &&
+    !normalizedEmail.endsWith("@gmail.com")
   ) {
     return res.status(400).json({
         message: "Use Acity or Gmail email."
@@ -23,31 +26,55 @@ exports.register = async (req, res) => {
     
     const existingUser = await pool.query(
       "SELECT * FROM users WHERE email = $1",
-      [email]
+      [normalizedEmail]
     );
 
     if (existingUser.rows.length > 0) {
       return res.status(400).json({ message: "User already exists" });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    if(password.length < 8){
+
+    return res.status(400).json({
+
+        message:
+        "Password must be at least 8 characters."
+
+    });
+
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 12);
 
     const newUser = await pool.query(
       "INSERT INTO users (name, email, password, receive_marketplace_updates) VALUES ($1, $2, $3, $4) RETURNING *",
-      [name, email, hashedPassword, receive_marketplace_updates]
+      [name, normalizedEmail, hashedPassword, receive_marketplace_updates]
     );
 
     sendEmail(
-    email,
+    normalizedEmail,
     "🎉 Welcome to Acity Connect",
     welcomeTemplate(name)
     ).catch(err => {
     console.error("Welcome email failed:", err);
     });
 
+    const {
+
+        password:_,
+
+        ...safeUser
+
+    } = newUser.rows[0];
+
     res.json({
-    message: "User registered successfully",
-    user: newUser.rows[0],
+
+        message:
+
+        "User registered successfully",
+
+        user:safeUser
+
     });
 
     
@@ -61,12 +88,15 @@ exports.register = async (req, res) => {
 
 
 exports.login = async (req, res) => {
+    
   const { email, password } = req.body;
+
+    const normalizedEmail = email?.trim().toLowerCase();
 
   try {
     const user = await pool.query(
       "SELECT * FROM users WHERE email = $1",
-      [email]
+      [normalizedEmail]
     );
 
     if (user.rows.length === 0) {
@@ -84,7 +114,7 @@ exports.login = async (req, res) => {
 
     const token = jwt.sign(
         { id: user.rows[0].id, role: user.rows[0].role },
-        process.env.JWT_SECRET || "secret",
+        process.env.JWT_SECRET,
         { expiresIn: "1d" }
     );
 
@@ -104,6 +134,7 @@ exports.login = async (req, res) => {
 exports.forgotPassword = async (req, res) => {
 
     const { email } = req.body;
+    const normalizedEmail = email?.trim().toLowerCase();
 
     try {
 
@@ -113,7 +144,7 @@ exports.forgotPassword = async (req, res) => {
             FROM users
             WHERE email = $1
             `,
-            [email]
+            [normalizedEmail]
         );
 
         if(user.rows.length === 0){
@@ -149,12 +180,11 @@ exports.forgotPassword = async (req, res) => {
         );
 
         const resetLink =
-
-        `https://nanaamoah321.github.io/acity-frontend/reset-password.html?token=${token}`;
+        `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
 
         await sendEmail(
 
-            email,
+            normalizedEmail,
 
             "Reset your Acity Connect password",
 
@@ -218,7 +248,7 @@ exports.resetPassword = async (req, res) => {
         }
 
         const hashedPassword =
-        await bcrypt.hash(password,10);
+        await bcrypt.hash(password,12);
 
         await pool.query(
             `
