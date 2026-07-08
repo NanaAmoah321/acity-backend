@@ -997,7 +997,7 @@ text-align:center;
 
 <h1>
 
-🛒 Acity Connect
+🛒 Acity Marketplace
 
 </h1>
 
@@ -1167,7 +1167,7 @@ text-align:center;
 
 <h1>
 
-🛠 Acity Connect
+🛠 Acity Services
 
 </h1>
 
