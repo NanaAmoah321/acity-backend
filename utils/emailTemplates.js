@@ -903,6 +903,40 @@ You're receiving this email because you subscribed to service updates or follow 
 
 </p>
 
+<div style="
+text-align:center;
+margin-top:25px;
+">
+
+<a
+href="${process.env.FRONTEND_URL}/profile.html"
+style="
+display:inline-block;
+margin-right:15px;
+color:#2563EB;
+text-decoration:none;
+font-weight:bold;
+">
+
+Manage Preferences
+
+</a>
+
+<a
+href="${process.env.BACKEND_URL}/api/email/unsubscribe/${unsubscribeToken}"
+style="
+display:inline-block;
+color:#EF4444;
+text-decoration:none;
+font-weight:bold;
+">
+
+Unsubscribe
+
+</a>
+
+</div>
+
 <p
 style="
 font-size:12px;
@@ -1077,8 +1111,13 @@ You're receiving this because you subscribed to marketplace updates or follow th
 <p>
 
 <a
-href="${process.env.FRONTEND_URL}/unsubscribe.html?token=${unsubscribeToken}"
->
+href="${process.env.BACKEND_URL}/api/email/unsubscribe/${unsubscribeToken}"
+style="
+display:inline-block;
+color:#EF4444;
+text-decoration:none;
+font-weight:bold;
+">
 
 Unsubscribe
 
@@ -1247,8 +1286,13 @@ You're receiving this because you subscribed to service updates or follow this p
 <p>
 
 <a
-href="${process.env.FRONTEND_URL}/unsubscribe.html?token=${unsubscribeToken}"
->
+href="${process.env.BACKEND_URL}/api/email/unsubscribe/${unsubscribeToken}"
+style="
+display:inline-block;
+color:#EF4444;
+text-decoration:none;
+font-weight:bold;
+">
 
 Unsubscribe
 
