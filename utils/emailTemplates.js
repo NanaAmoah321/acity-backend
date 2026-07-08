@@ -931,6 +931,343 @@ Acity Connect • Academic City University
 </html>
 
 `;
+const marketplaceDigestTemplate = (
+    receiverName,
+    sellerName,
+    listings,
+    averageRating,
+    totalReviews,
+    unsubscribeToken
+) => {
+
+    const preview = listings.slice(0, 5);
+
+    const listingHtml = preview.map(item => `
+        <tr>
+            <td style="padding:16px;border-bottom:1px solid #eee;">
+                <h3 style="margin:0;color:#111827;">
+                    ${item.title}
+                </h3>
+
+                <p style="margin:8px 0;color:#6B7280;">
+                    ${item.category}
+                </p>
+
+                <strong style="color:#DC2626;">
+                    GH₵${item.price}
+                </strong>
+            </td>
+        </tr>
+    `).join("");
+
+    const remaining =
+        listings.length > 5
+        ? `<p style="text-align:center;color:#6B7280;font-size:15px;">
+            +${listings.length - 5} more item(s)
+           </p>`
+        : "";
+
+    return `
+<!DOCTYPE html>
+<html>
+<body style="
+background:#f4f7fb;
+font-family:Arial;
+padding:40px;
+">
+
+<table
+style="
+max-width:700px;
+margin:auto;
+background:white;
+border-radius:18px;
+overflow:hidden;
+">
+
+<tr>
+
+<td
+style="
+background:#DC2626;
+padding:40px;
+color:white;
+text-align:center;
+">
+
+<h1>
+
+🛒 Acity Connect
+
+</h1>
+
+<p>
+
+${sellerName} added ${listings.length} new marketplace item${listings.length>1?"s":""}
+
+</p>
+
+</td>
+
+</tr>
+
+<tr>
+
+<td style="padding:40px;">
+
+<h2>
+
+Hello ${receiverName} 👋
+
+</h2>
+
+<p>
+
+<strong>${sellerName}</strong>
+
+just updated their store.
+
+</p>
+
+<p>
+
+⭐ ${averageRating} (${totalReviews} reviews)
+
+</p>
+
+<table
+width="100%"
+cellspacing="0"
+cellpadding="0">
+
+${listingHtml}
+
+</table>
+
+${remaining}
+
+<div style="text-align:center;margin:35px 0;">
+
+<a
+href="${process.env.FRONTEND_URL}"
+style="
+background:#DC2626;
+color:white;
+padding:16px 35px;
+border-radius:999px;
+text-decoration:none;
+display:inline-block;
+font-weight:bold;
+">
+
+Visit Store →
+
+</a>
+
+</div>
+
+<hr>
+
+<p style="font-size:13px;color:#666;">
+
+You're receiving this because you subscribed to marketplace updates or follow this seller.
+
+</p>
+
+<p>
+
+<a
+href="${process.env.FRONTEND_URL}/unsubscribe.html?token=${unsubscribeToken}"
+>
+
+Unsubscribe
+
+</a>
+
+</p>
+
+</td>
+
+</tr>
+
+</table>
+
+</body>
+
+</html>
+`;
+
+};
+
+const serviceDigestTemplate = (
+    receiverName,
+    providerName,
+    services,
+    averageRating,
+    unsubscribeToken
+) => {
+
+    const preview = services.slice(0, 5);
+
+    const serviceHtml = preview.map(service => `
+        <tr>
+            <td style="padding:16px;border-bottom:1px solid #eee;">
+                <h3 style="margin:0;color:#111827;">
+                    ${service.title}
+                </h3>
+
+                <p style="margin:8px 0;color:#6B7280;">
+                    ${service.category}
+                </p>
+
+                <strong style="color:#2563EB;">
+                    GH₵${service.rate}
+                    ${service.rate_type}
+                </strong>
+            </td>
+        </tr>
+    `).join("");
+
+    const remaining =
+        services.length > 5
+        ? `<p style="text-align:center;color:#6B7280;font-size:15px;">
+            +${services.length - 5} more service(s)
+           </p>`
+        : "";
+
+    return `
+<!DOCTYPE html>
+
+<html>
+
+<body style="
+background:#f4f7fb;
+font-family:Arial;
+padding:40px;
+">
+
+<table
+style="
+max-width:700px;
+margin:auto;
+background:white;
+border-radius:18px;
+overflow:hidden;
+">
+
+<tr>
+
+<td
+style="
+background:#2563EB;
+padding:40px;
+color:white;
+text-align:center;
+">
+
+<h1>
+
+🛠 Acity Connect
+
+</h1>
+
+<p>
+
+${providerName} added ${services.length} new service${services.length > 1 ? "s" : ""}
+
+</p>
+
+</td>
+
+</tr>
+
+<tr>
+
+<td style="padding:40px;">
+
+<h2>
+
+Hello ${receiverName} 👋
+
+</h2>
+
+<p>
+
+<strong>${providerName}</strong>
+
+just posted new services.
+
+</p>
+
+<p>
+
+⭐ ${averageRating}
+
+</p>
+
+<table
+width="100%"
+cellspacing="0"
+cellpadding="0">
+
+${serviceHtml}
+
+</table>
+
+${remaining}
+
+<div style="text-align:center;margin:35px 0;">
+
+<a
+href="${process.env.FRONTEND_URL}/services.html"
+style="
+background:#2563EB;
+color:white;
+padding:16px 35px;
+border-radius:999px;
+text-decoration:none;
+display:inline-block;
+font-weight:bold;
+">
+
+View Services →
+
+</a>
+
+</div>
+
+<hr>
+
+<p style="font-size:13px;color:#666;">
+
+You're receiving this because you subscribed to service updates or follow this provider.
+
+</p>
+
+<p>
+
+<a
+href="${process.env.FRONTEND_URL}/unsubscribe.html?token=${unsubscribeToken}"
+>
+
+Unsubscribe
+
+</a>
+
+</p>
+
+</td>
+
+</tr>
+
+</table>
+
+</body>
+
+</html>
+`;
+
+};
 
 
 module.exports = {
@@ -945,8 +1282,8 @@ module.exports = {
 
     resetPasswordTemplate,
 
-    newListingTemplate,
+    marketplaceDigestTemplate,
 
-    newServiceTemplate
+    serviceDigestTemplate
 
 };

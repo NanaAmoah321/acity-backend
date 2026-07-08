@@ -74,176 +74,91 @@ if(validationError){
             ]
         );
 
-        const subscribers =
-await pool.query(
-
-    `
-    SELECT
-        id,
-        name,
-        email,
-        unsubscribe_token
-
-    FROM users
-
-    WHERE
-        receive_marketplace_updates = TRUE
-    `
-
-);
-
-const followers =
-await pool.query(
-
-    `
-    SELECT
-
-        users.id,
-
-        users.name,
-
-        users.email,
-
-        users.unsubscribe_token
-
-    FROM store_followers
-
-    JOIN users
-
-    ON users.id =
-    store_followers.follower_id
-
-    WHERE
-        following_user_id = $1
-    `,
-
-    [
-
-        req.user.id
-
-    ]
-
-);
-
-const recipients =
-new Map();
-
-[
-    ...subscribers.rows,
-
-    ...followers.rows
-
-].forEach(user=>{
-
-    recipients.set(
-
-        user.id,
-
-        user
-
-    );
-
-});
-
-const provider = await pool.query(
+        const subscribers = await pool.query(
 `
 SELECT
-
-    users.name,
-
-    COALESCE(
-        ROUND(AVG(reviews.rating),1),
-        0
-    ) AS average_rating,
-
-    COUNT(reviews.id) AS total_reviews
-
+    id
 FROM users
+WHERE
+    receive_marketplace_updates = TRUE
+`
+);
 
-LEFT JOIN reviews
-ON reviews.reviewed_user_id = users.id
-
-WHERE users.id = $1
-
-GROUP BY
-users.id,
-users.name
+const followers = await pool.query(
+`
+SELECT
+    follower_id AS id
+FROM store_followers
+WHERE
+    following_user_id = $1
 `,
 [
     req.user.id
 ]
 );
 
-for(const user of recipients.values()){
+const recipients = new Set();
+
+subscribers.rows.forEach(user=>{
+
+    recipients.add(user.id);
+
+});
+
+followers.rows.forEach(user=>{
+
+    recipients.add(user.id);
+
+});
+
+for(const userId of recipients){
 
     await pool.query(
+    `
+    INSERT INTO email_queue(
 
-        `
-        INSERT INTO email_queue
-        (
+        user_id,
 
-            user_id,
+        seller_id,
 
-            seller_id,
+        service_id,
 
-            service_id,
+        type,
 
-            type
+        status,
 
-        )
-
-        VALUES
-
-        ($1,$2,$3,$4)
-        `,
-
-        [
-
-            user.id,
-
-            req.user.id,
-
-            result.rows[0].id,
-
-            "service"
-
-        ]
-
-    );
-
-}
-
-/*for(const user of recipients.values()){
-
-    await sendEmail(
-
-    user.email,
-
-    `🛠️ ${provider.rows[0].name} is offering "${result.rows[0].title}"`,
-
-    newServiceTemplate(
-
-        user.name,
-
-        provider.rows[0].name,
-
-        result.rows[0].title,
-
-        result.rows[0].category,
-
-        result.rows[0].rate,
-
-        result.rows[0].rate_type,
-
-        provider.rows[0].average_rating,
-
-        user.unsubscribe_token
+        processed
 
     )
 
+    VALUES(
+
+        $1,
+
+        $2,
+
+        $3,
+
+        'service',
+
+        'pending',
+
+        FALSE
+
+    )
+    `,
+    [
+
+        userId,
+
+        req.user.id,
+
+        result.rows[0].id
+
+    ]
     );
 
-}*/
+}
 
         res.json(
             result.rows[0]

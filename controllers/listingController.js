@@ -1,12 +1,12 @@
 const pool = require("../config/db");
 const { createNotification } = require("../utils/notifications");
-const { sendEmail } = require("../utils/email");
+/*const { sendEmail } = require("../utils/email");*/
 const supabase = require("../config/supabase");
 const { validateListing, validateOrder } = require("../utils/validators");
 const {
     buyerOrderTemplate,
     sellerOrderTemplate,
-    newListingTemplate
+    /*newListingTemplate*/
 } = require("../utils/emailTemplates");
 
 exports.createListing = async (req, res) => {
@@ -68,51 +68,90 @@ exports.createListing = async (req, res) => {
         );
 
         const subscribers = await pool.query(
-            `
-            SELECT id, name, email, unsubscribe_token
-            FROM users
-            WHERE receive_marketplace_updates = TRUE
-            `
+        `
+        SELECT
+           id
+        FROM users
+        WHERE
+            receive_marketplace_updates = TRUE
+        `
         );
 
         const followers = await pool.query(
-            `
-            SELECT users.id, users.name, users.email, users.unsubscribe_token
-            FROM store_followers
-            JOIN users ON users.id = store_followers.follower_id
-            WHERE following_user_id = $1
-            `,
-            [req.user.id]
+        `
+        SELECT
+            follower_id AS id
+        FROM store_followers
+        WHERE
+            following_user_id = $1
+        `,
+        [
+            req.user.id
+        ]
         );
 
-        const recipients = new Map();
-        [...subscribers.rows, ...followers.rows].forEach(user => {
-            recipients.set(user.id, user);
+        const recipients = new Set();
+
+        subscribers.rows.forEach(user=>{
+
+            recipients.add(user.id);
+
         });
 
-        const seller = await pool.query(
-            `
-            SELECT
-                users.name,
-                COALESCE(ROUND(AVG(reviews.rating), 1), 0) AS average_rating,
-                COUNT(reviews.id) AS total_reviews
-            FROM users
-            LEFT JOIN reviews ON reviews.reviewed_user_id = users.id
-            WHERE users.id = $1
-            GROUP BY users.id, users.name
-            `,
-            [req.user.id]
-        );
+        followers.rows.forEach(user=>{
 
-        // Enqueues the job for the email queue worker script to parse asynchronously
-        await pool.query(
-            `
-            INSERT INTO email_queue(seller_id, listing_id, type)
-            VALUES($1, $2, $3)
-            `,
-            [req.user.id, newListing.rows[0].id, "listing"]
-        );
+            recipients.add(user.id);
 
+        });
+
+        for(const userId of recipients){
+
+            await pool.query(
+            `
+            INSERT INTO email_queue(
+
+                user_id,
+
+                seller_id,
+
+                listing_id,
+
+                type,
+
+                status,
+
+                processed
+
+            )
+
+            VALUES(
+
+                $1,
+
+                $2,
+
+                $3,
+
+                'listing',
+
+                'pending',
+
+                FALSE
+
+            )
+            `,
+            [
+
+                userId,
+
+                req.user.id,
+
+                newListing.rows[0].id
+
+            ]
+            );
+
+        }
         res.json(newListing.rows[0]);
 
     } catch (err) {
