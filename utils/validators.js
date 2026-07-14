@@ -183,55 +183,32 @@ exports.validateService = ({
 exports.validateOrder = ({
     quantity,
     delivery_method,
-    room_number
+    room_number = "" // <-- FIXED: Added fallback string so .trim() never crashes on meetup orders
 }) => {
 
-    if(
-        !Number.isInteger(
-            Number(quantity)
-        ) ||
+    if (
+        !Number.isInteger(Number(quantity)) ||
         Number(quantity) < 1
-    ){
-
+    ) {
         return "Quantity must be at least 1.";
-
     }
 
     const allowedMethods = [
-
         "meetup",
-
-        "hostel"
-
+        "room"
     ];
 
-    if(
-        !allowedMethods.includes(
-            delivery_method
-        )
-    ){
-
-        return "INVALID METHOD TEST.";
-
+    if (!allowedMethods.includes(delivery_method)) {
+        return "Invalid delivery method selection.";
     }
 
-    if(
-
-        delivery_method === "hostel"
-
-        &&
-
-        (
-            !room_number ||
-            !room_number.trim()
-        )
-
-    ){
-
-        return "Room number is required for hostel delivery.";
-
+    // Safely handles string check now that room_number defaults to a string
+    if (
+        delivery_method === "room" && 
+        (!room_number || !room_number.toString().trim())
+    ) {
+        return "Room number is required for room delivery.";
     }
 
     return null;
-
 };
