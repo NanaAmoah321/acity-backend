@@ -211,7 +211,7 @@ exports.validateOrder = ({
         )
     ){
 
-        return "Invalid delivery method.";
+        return "INVALID METHOD TEST.";
 
     }
 
