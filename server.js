@@ -28,7 +28,61 @@ const app = express();
    1. CORE SECURITY & GLOBAL MIDDLEWARE
 ===================================== */
 app.set('trust proxy', 1);
-app.use(helmet());
+app.use(
+    helmet({
+        contentSecurityPolicy: {
+            directives: {
+                defaultSrc: ["'self'"],
+
+                scriptSrc: [
+                    "'self'",
+                    "'unsafe-inline'",
+                    "https://cdnjs.cloudflare.com",
+                    "https://www.googletagmanager.com",
+                    "https://cdn.socket.io"
+                ],
+
+                styleSrc: [
+                    "'self'",
+                    "'unsafe-inline'",
+                    "https://cdnjs.cloudflare.com"
+                ],
+
+                fontSrc: [
+                    "'self'",
+                    "https://cdnjs.cloudflare.com"
+                ],
+
+                imgSrc: [
+                    "'self'",
+                    "data:",
+                    "blob:",
+                    "https:",
+                    "https://*.supabase.co",
+                    "https://acity-backend.onrender.com"
+                ],
+
+                connectSrc: [
+                    "'self'",
+                    "https://acity-backend.onrender.com",
+                    "wss://acity-backend.onrender.com",
+                    "https://cdnjs.cloudflare.com",
+                    "https://www.google-analytics.com"
+                ],
+
+                objectSrc: ["'none'"],
+                frameAncestors: ["'self'"],
+                baseUri: ["'self'"],
+                formAction: ["'self'"],
+                upgradeInsecureRequests: []
+            }
+        },
+
+        crossOriginEmbedderPolicy: false
+    })
+);
+
+
 
 // Dynamic CORS Configuration
 const allowedOrigins = [
