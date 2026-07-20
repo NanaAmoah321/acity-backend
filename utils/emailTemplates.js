@@ -1,4 +1,4 @@
-const renderTemplate = require("../utils/renderTemplate");
+const renderTemplate = require("./renderTemplate");
 const { sendEmail } = require("./email");
 
 async function sendWelcomeEmail(user) {
@@ -19,9 +19,7 @@ async function sendWelcomeEmail(user) {
     });
 }
 
-module.exports = {
-    sendWelcomeEmail
-};
+
 
 
 function buyerOrderTemplate(name, itemName){
@@ -1186,7 +1184,7 @@ Unsubscribe
 
 module.exports = {
 
-    welcomeTemplate,
+    sendWelcomeEmail,
 
     buyerOrderTemplate,
 
