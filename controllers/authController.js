@@ -1,8 +1,7 @@
 const pool = require("../config/db");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const { sendEmail } = require("../utils/email");
-const { welcomeTemplate } = require("../utils/emailTemplates");
+const { sendWelcomeEmail } = require("../utils/emailTemplates");
 const crypto = require("crypto");
 const { resetPasswordTemplate } = require("../utils/emailTemplates");
 
@@ -51,13 +50,7 @@ exports.register = async (req, res) => {
       [name, normalizedEmail, hashedPassword, receive_marketplace_updates]
     );
 
-    sendEmail(
-    normalizedEmail,
-    "🎉 Welcome to Acity Connect",
-    welcomeTemplate(name)
-    ).catch(err => {
-    console.error("Welcome email failed:", err);
-    });
+    sendWelcomeEmail(newUser.rows[0]).catch(err => console.error("Error sending welcome email:", err));
 
     const {
 

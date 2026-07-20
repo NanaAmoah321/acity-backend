@@ -1,158 +1,28 @@
-function welcomeTemplate(name) {
+const renderTemplate = require("../utils/renderTemplate");
+const { sendEmail } = require("./email");
 
-    return `
+async function sendWelcomeEmail(user) {
 
-    <!DOCTYPE html>
+    const html = renderTemplate("welcome", {
+        first_name: user.name,
+        company_name: "Acity Connect",
+        company_address: "Academic City University, Accra",
+        unsubscribe_url:
+            `${process.env.FRONTEND_URL}/unsubscribe`
+    });
 
-    <html>
-
-    <body style="
-        margin:0;
-        padding:0;
-        background:#f4f7fb;
-        font-family:Arial, Helvetica, sans-serif;
-    ">
-
-        <table width="100%" cellpadding="0" cellspacing="0">
-
-            <tr>
-
-                <td align="center">
-
-                    <table
-                        width="650"
-                        cellpadding="0"
-                        cellspacing="0"
-                        style="
-                            background:white;
-                            margin:40px 0;
-                            border-radius:18px;
-                            overflow:hidden;
-                            box-shadow:0 15px 40px rgba(0,0,0,.08);
-                        "
-                    >
-
-                        <tr>
-
-                            <td
-                                align="center"
-                                style="
-                                    background:#ff2d2d;
-                                    color:white;
-                                    padding:40px;
-                                "
-                            >
-
-                                <h1 style="margin:0;">
-
-                                    🎓 Acity Connect
-
-                                </h1>
-
-                                <p style="margin-top:12px;">
-
-                                    Your Campus Marketplace
-
-                                </p>
-
-                            </td>
-
-                        </tr>
-
-                        <tr>
-
-                            <td style="padding:45px;">
-
-                                <h2>
-
-                                    Welcome ${name}! 👋
-
-                                </h2>
-
-                                <p>
-
-                                    Thanks for joining
-                                    <strong>Acity Connect.</strong>
-
-                                </p>
-
-                                <p>
-
-                                    You can now:
-
-                                </p>
-
-                                <ul>
-
-                                    <li>🛒 Buy & Sell Items</li>
-
-                                    <li>💬 Chat with Students</li>
-
-                                    <li>🛠 Offer Services</li>
-
-                                    <li>⭐ Receive Reviews</li>
-
-                                    <li>📦 Manage Orders</li>
-
-                                </ul>
-
-                                <div
-                                    style="
-                                        margin:40px 0;
-                                        text-align:center;
-                                    "
-                                >
-
-                                    <a
-                                        href="${process.env.FRONTEND_URL}"
-                                        style="
-                                            display:inline-block;
-                                            padding:16px 36px;
-                                            background:#ff2d2d;
-                                            color:white;
-                                            text-decoration:none;
-                                            border-radius:50px;
-                                            font-weight:bold;
-                                        "
-                                    >
-
-                                        Open Acity Connect
-
-                                    </a>
-
-                                </div>
-
-                                <p>
-
-                                    Happy trading!
-
-                                </p>
-
-                                <h3>
-
-                                    The Acity Connect Team ❤️
-
-                                </h3>
-
-                            </td>
-
-                        </tr>
-
-                    </table>
-
-                </td>
-
-            </tr>
-
-        </table>
-
-    </body>
-
-    </html>
-
-    `;
-
+    return sendEmail({
+        from: process.env.EMAIL_FROM,
+        to: user.email,
+        subject: "Welcome to Acity Connect! 🎉",
+        html
+    });
 }
+
+module.exports = {
+    sendWelcomeEmail
+};
+
 
 function buyerOrderTemplate(name, itemName){
 
