@@ -258,6 +258,7 @@ exports.googleRegister = async (req, res) => {
     const {
         credential,
         level,
+        password,
         receive_marketplace_updates
     } = req.body;
 
@@ -332,7 +333,7 @@ exports.googleRegister = async (req, res) => {
             }
         );
 
-        const { password, ...safeUser } = newUser.rows[0];
+        const { password: _password, ...safeUser } = newUser.rows[0];
 
         return res.status(201).json({
             message: "Account created successfully.",
