@@ -228,6 +228,125 @@ exports.googleLogin = async (req, res) => {
     }
 };
 
+exports.googlePreview = async (req, res) => {
+    const { credential } = req.body;
+
+    if (!credential) {
+        return res.status(400).json({
+            message: "Missing Google credential"
+        });
+    }
+
+    try {
+        const payload = await verifyGoogleToken(credential);
+
+        return res.json({
+            name: payload.name,
+            email: payload.email ? payload.email.toLowerCase().trim() : "",
+            picture: payload.picture,
+            verified: payload.email_verified
+        });
+    } catch (err) {
+        console.error("Google Preview Error:", err);
+        return res.status(401).json({
+            message: "Google authentication failed"
+        });
+    }
+};
+
+exports.googleRegister = async (req, res) => {
+    const {
+        credential,
+        level,
+        receive_marketplace_updates
+    } = req.body;
+
+    if (!credential) {
+        return res.status(400).json({
+            message: "Missing Google credential"
+        });
+    }
+
+    if (!level) {
+        return res.status(400).json({
+            message: "Please select your level."
+        });
+    }
+
+    try {
+        const payload = await verifyGoogleToken(credential);
+        const email = payload.email.toLowerCase().trim();
+        const name = payload.name;
+        const picture = payload.picture;
+        const verified = payload.email_verified;
+
+        const existingUser = await pool.query(
+            "SELECT * FROM users WHERE email = $1",
+            [email]
+        );
+
+        if (existingUser.rows.length > 0) {
+            return res.status(400).json({
+                message: "An account with this email already exists."
+            });
+        }
+
+        const randomPassword = crypto.randomUUID();
+        const hashedPassword = await bcrypt.hash(randomPassword, 10);
+
+        const newUser = await pool.query(
+            `
+            INSERT INTO users (
+                name,
+                email,
+                password,
+                level,
+                verified,
+                profile_picture,
+                receive_marketplace_updates,
+                role
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, 'user')
+            RETURNING *
+            `,
+            [
+                name,
+                email,
+                hashedPassword,
+                level,
+                verified,
+                picture,
+                receive_marketplace_updates
+            ]
+        );
+
+        const token = jwt.sign(
+            {
+                id: newUser.rows[0].id,
+                role: newUser.rows[0].role
+            },
+            process.env.JWT_SECRET,
+            {
+                expiresIn: "1d"
+            }
+        );
+
+        const { password, ...safeUser } = newUser.rows[0];
+
+        return res.status(201).json({
+            message: "Account created successfully.",
+            token,
+            user: safeUser
+        });
+
+    } catch (err) {
+        console.error("Google Register Error:", err);
+        return res.status(500).json({
+            message: "Unable to create account."
+        });
+    }
+};
+
 exports.forgotPassword = async (req, res) => {
 
     const { email } = req.body;

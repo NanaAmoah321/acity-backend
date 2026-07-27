@@ -8,6 +8,8 @@ const {
 
 router.post("/register", authLimiter, authController.register);
 router.post("/login", authLimiter, authController.login);
+router.post("/google-preview",authLimiter, authController.googlePreview);
+router.post("/google-register", authLimiter, authController.googleRegister);
 router.post("/google", authLimiter, authController.googleLogin);
 router.get("/profile", authMiddleware, authController.getProfile);
 router.put(
