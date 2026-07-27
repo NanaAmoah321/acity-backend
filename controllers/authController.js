@@ -291,8 +291,9 @@ exports.googleRegister = async (req, res) => {
             });
         }
 
-        const randomPassword = crypto.randomUUID();
-        const hashedPassword = await bcrypt.hash(randomPassword, 10);
+        const passwordToSave = password?.trim() ? password : crypto.randomUUID();
+    
+        const hashedPassword = await bcrypt.hash(passwordToSave, 10);
 
         const newUser = await pool.query(
             `
