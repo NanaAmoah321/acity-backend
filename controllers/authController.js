@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const { sendWelcomeEmail } = require("../utils/emailTemplates");
 const crypto = require("crypto");
 const { resetPasswordTemplate } = require("../utils/emailTemplates");
+const {verifyGoogleToken} = require("../utils/googleAuth");
 
 
 exports.register = async (req, res) => {
@@ -122,6 +123,86 @@ exports.login = async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+};
+
+exports.googleLogin = async (req, res) => {
+    const { credential } = req.body;
+
+    if (!credential) {
+        return res.status(400).json({
+            message: "Missing Google credential"
+        });
+    }
+
+    try {
+        const payload = await verifyGoogleToken(credential);
+
+        const email = payload.email.toLowerCase().trim();
+        const name = payload.name;
+        const picture = payload.picture;
+
+        let user = await pool.query(
+            "SELECT * FROM users WHERE email = $1",
+            [email]
+        );
+
+        const randomPassword = crypto.randomUUID();
+        const hashedPassword = await bcrypt.hash(randomPassword, 10);
+
+        // Create account if first login
+        if (user.rows.length === 0) {
+            const newUser = await pool.query(
+                `
+                INSERT INTO users
+                (
+                    name,
+                    email,
+                    password,
+                    profile_picture,
+                    verified,
+                    role
+                )
+                VALUES
+                ($1, $2, $3, $4, true, 'user')
+                RETURNING *
+                `,
+                [
+                    name,
+                    email,
+                    hashedPassword,
+                    picture
+                ]
+            );
+
+            user = newUser;
+        }
+
+        const token = jwt.sign(
+            {
+                id: user.rows[0].id,
+                role: user.rows[0].role
+            },
+            process.env.JWT_SECRET,
+            {
+                expiresIn: "1d"
+            }
+        );
+
+        const { password, ...safeUser } = user.rows[0];
+
+        res.json({
+            message: "Login successful",
+            token,
+            user: safeUser
+        });
+
+    } catch (err) {
+        console.error("Google Auth Error:", err);
+
+        res.status(401).json({
+            message: "Google authentication failed"
+        });
+    }
 };
 
 exports.forgotPassword = async (req, res) => {
