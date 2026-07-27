@@ -146,11 +146,34 @@ exports.googleLogin = async (req, res) => {
             [email]
         );
 
-        const randomPassword = crypto.randomUUID();
-        const hashedPassword = await bcrypt.hash(randomPassword, 10);
+        if (user.rows.length > 0 && user.rows[0].profile_picture !== picture) {
+
+            await pool.query(
+                `
+                UPDATE users
+                SET profile_picture = $1
+                WHERE id = $2
+                `,
+                [
+                    picture,
+                    user.rows[0].id
+                ]
+            );
+
+            user = await pool.query(
+                "SELECT * FROM users WHERE id = $1",
+                [user.rows[0].id]
+            );
+
+        }
+
+        
 
         // Create account if first login
         if (user.rows.length === 0) {
+            const randomPassword = crypto.randomUUID();
+            const hashedPassword = await bcrypt.hash(randomPassword, 10);
+
             const newUser = await pool.query(
                 `
                 INSERT INTO users
