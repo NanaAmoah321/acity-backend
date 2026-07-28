@@ -7,6 +7,7 @@ require("../middleware/authMiddleware");
 
 const followController =
 require("../controllers/followController");
+const { resourceLimiter } = require("../middleware/rateLimiters");
 
 router.post(
 
@@ -23,6 +24,8 @@ router.get(
     "/:userId",
 
     authMiddleware,
+
+    resourceLimiter,
 
     followController.getFollowStatus
 

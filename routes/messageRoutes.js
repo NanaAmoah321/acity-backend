@@ -9,10 +9,12 @@ require("../middleware/authMiddleware");
 
 const messageController =
 require("../controllers/messageController");
+const { resourceLimiter } = require("../middleware/rateLimiters");
 
 router.post(
     "/",
     authMiddleware,
+    resourceLimiter,
     upload.single("attachment"),
     messageController.sendMessage
 );

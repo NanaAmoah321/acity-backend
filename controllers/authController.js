@@ -1,15 +1,30 @@
 const pool = require("../config/db");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const { sendWelcomeEmail } = require("../utils/emailTemplates");
 const crypto = require("crypto");
-const { resetPasswordTemplate } = require("../utils/emailTemplates");
-const {verifyGoogleToken} = require("../utils/googleAuth");
+const {
+    sendWelcomeEmail,
+    resetPasswordTemplate
+} = require("../utils/emailTemplates");
+const { sendEmail } = require("../utils/email");
+const { verifyGoogleToken } = require("../utils/googleAuth");
 
 
 exports.register = async (req, res) => {
     
-  const { name, email, password, receive_marketplace_updates } = req.body;
+  const {
+        name,
+        email,
+        password,
+        level,
+        receive_marketplace_updates
+    } = req.body;
+
+    if (!level) {
+        return res.status(400).json({
+            message: "Please select your level."
+        });
+    }
     
   const normalizedEmail = email?.trim().toLowerCase();
 
@@ -47,8 +62,24 @@ exports.register = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 12);
 
     const newUser = await pool.query(
-      "INSERT INTO users (name, email, password, receive_marketplace_updates) VALUES ($1, $2, $3, $4) RETURNING *",
-      [name, normalizedEmail, hashedPassword, receive_marketplace_updates]
+        `
+        INSERT INTO users (
+            name,
+            email,
+            password,
+            level,
+            receive_marketplace_updates
+        )
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING *
+        `,
+        [
+            name,
+            normalizedEmail,
+            hashedPassword,
+            level,
+            receive_marketplace_updates
+        ]
     );
 
     sendWelcomeEmail(newUser.rows[0]).catch(err => console.error("Error sending welcome email:", err));

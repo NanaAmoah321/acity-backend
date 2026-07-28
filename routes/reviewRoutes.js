@@ -9,10 +9,12 @@ require("../middleware/authMiddleware");
 
 const reviewController =
 require("../controllers/reviewController");
+const { resourceLimiter } = require("../middleware/rateLimiters");
 
 router.post(
     "/",
     authMiddleware,
+    resourceLimiter,
     reviewController.createReview
 );
 
