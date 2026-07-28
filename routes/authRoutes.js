@@ -3,7 +3,8 @@ const router = express.Router();
 const authController = require("../controllers/authController");
 const authMiddleware = require("../middleware/authMiddleware");
 const {
-    authLimiter
+    authLimiter,
+    resourceLimiter
 } = require("../middleware/rateLimiters");
 
 router.post("/register", authLimiter, authController.register);
@@ -15,6 +16,7 @@ router.get("/profile", authMiddleware, authController.getProfile);
 router.put(
     "/profile",
     authMiddleware,
+    resourceLimiter,
     authController.updateProfile
 );
 router.post(

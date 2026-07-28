@@ -7,6 +7,7 @@ require("../middleware/authMiddleware");
 
 const notificationController =
 require("../controllers/notificationController");
+const { resourceLimiter } = require("../middleware/rateLimiters");
 
 router.get(
     "/",
@@ -26,6 +27,8 @@ router.patch(
 
     authMiddleware,
 
+    resourceLimiter,
+
     notificationController.markAllAsRead
 
 );
@@ -33,6 +36,7 @@ router.patch(
 router.patch(
     "/:id/read",
     authMiddleware,
+    resourceLimiter,
     notificationController.markAsRead
 );
 

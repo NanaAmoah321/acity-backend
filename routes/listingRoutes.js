@@ -25,24 +25,26 @@ router.get("/", listingController.getListings);
 router.put(
     "/:id/sold",
     authMiddleware,
+    resourceLimiter,
     listingController.markListingSold
 );
-router.put("/:id", authMiddleware, listingController.updateListing);
-router.delete("/:id", authMiddleware, listingController.deleteListing);
-router.post("/interest", authMiddleware, listingController.addInterest);
+router.put("/:id", authMiddleware,resourceLimiter, listingController.updateListing);
+router.delete("/:id", authMiddleware, resourceLimiter,listingController.deleteListing);
+router.post("/interest", authMiddleware,resourceLimiter, listingController.addInterest);
 router.get("/interested", authMiddleware, listingController.getInterestedListings);
-router.delete("/cart/:listing_id", authMiddleware, listingController.removeFromCart);
+router.delete("/cart/:listing_id", authMiddleware,resourceLimiter, listingController.removeFromCart);
 router.delete("/admin/:id", authMiddleware, adminMiddleware, listingController.adminDeleteListing);
 router.put("/flag/:id", authMiddleware,adminMiddleware, listingController.flagListing);
 router.get("/stores",listingController.getStores);
 router.get("/store/:userId",listingController.getStore);
 router.get("/seller-orders", authMiddleware, listingController.getSellerOrders);
-router.put("/orders/:id",authMiddleware,listingController.updateOrderStatus);
+router.put("/orders/:id",authMiddleware,resourceLimiter,listingController.updateOrderStatus);
 router.get( "/:id", listingController.getListingById);
 router.post("/orders",authMiddleware, resourceLimiter, listingController.createOrder);
 router.put(
     "/cart/:listing_id",
     authMiddleware,
+    resourceLimiter,
     listingController.updateCartQuantity
 );
 
