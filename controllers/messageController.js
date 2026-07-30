@@ -182,13 +182,24 @@ exports.getConversation = async (req, res) => {
             `
             SELECT
                 messages.*,
+
                 sender.name AS sender_name,
-                receiver.name AS receiver_name
+                sender.profile_picture AS sender_profile_picture,
+
+                receiver.name AS receiver_name,
+                receiver.profile_picture AS receiver_profile_picture
+
             FROM messages
-            JOIN users sender ON sender.id = messages.sender_id
-            JOIN users receiver ON receiver.id = messages.receiver_id
+
+            JOIN users sender
+                ON sender.id = messages.sender_id
+
+            JOIN users receiver
+                ON receiver.id = messages.receiver_id
+
             WHERE (sender_id = $1 AND receiver_id = $2)
                OR (sender_id = $2 AND receiver_id = $1)
+
             ORDER BY created_at ASC
             `,
             [req.user.id, otherUserId]
@@ -204,6 +215,7 @@ exports.getConversation = async (req, res) => {
         );
 
         return res.json(result.rows);
+
     } catch (err) {
         console.error(err);
         return res.status(500).json({ error: err.message });
