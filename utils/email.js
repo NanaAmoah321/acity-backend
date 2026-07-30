@@ -2,7 +2,14 @@ const { Resend } = require("resend");
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-async function sendEmail({from, to, subject, html}) {
+async function sendEmail({ from, to, subject, html }) {
+
+    console.log({
+        from,
+        to,
+        subject
+    });
+
     const { data, error } = await resend.emails.send({
         from,
         to,
@@ -13,7 +20,7 @@ async function sendEmail({from, to, subject, html}) {
     console.log("Resend response:", data, error);
 
     if (error) {
-        console.error("Resend error:", error);
+        console.error(error);
         throw error;
     }
 
@@ -21,4 +28,3 @@ async function sendEmail({from, to, subject, html}) {
 }
 
 module.exports = { sendEmail };
-
