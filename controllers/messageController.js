@@ -145,18 +145,33 @@ exports.getConversations = async (req, res) => {
                 END
             )
                 messages.*,
+
                 CASE
                     WHEN sender_id = $1 THEN receiver.name
                     ELSE sender.name
                 END AS conversation_name,
+
                 CASE
                     WHEN sender_id = $1 THEN receiver.id
                     ELSE sender.id
-                END AS conversation_user_id
+                END AS conversation_user_id,
+
+                CASE
+                    WHEN sender_id = $1 THEN receiver.profile_picture
+                    ELSE sender.profile_picture
+                END AS other_user_profile_picture
+
             FROM messages
-            JOIN users sender ON sender.id = messages.sender_id
-            JOIN users receiver ON receiver.id = messages.receiver_id
-            WHERE sender_id = $1 OR receiver_id = $1
+
+            JOIN users sender
+                ON sender.id = messages.sender_id
+
+            JOIN users receiver
+                ON receiver.id = messages.receiver_id
+
+            WHERE sender_id = $1
+               OR receiver_id = $1
+
             ORDER BY
                 CASE
                     WHEN sender_id = $1 THEN receiver_id
@@ -168,6 +183,7 @@ exports.getConversations = async (req, res) => {
         );
 
         return res.json(result.rows);
+
     } catch (err) {
         console.error(err);
         return res.status(500).json({ error: err.message });
