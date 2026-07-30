@@ -128,10 +128,11 @@ async function processEmailQueue() {
                             continue;
 
                         }
-                        await sendEmail(
-                            recipient.rows[0].email,
-                            `🛒 ${seller.rows[0].name} added ${listings.rows.length} new marketplace item${listings.rows.length > 1 ? "s" : ""}`,
-                            marketplaceDigestTemplate(
+                        await sendEmail({
+                            from: process.env.EMAIL_FROM,
+                            to: recipient.rows[0].email,
+                            subject: `🛒 ${seller.rows[0].name} added ${listings.rows.length} new marketplace item${listings.rows.length > 1 ? "s" : ""}`,
+                            html: marketplaceDigestTemplate(
                                 recipient.rows[0].name,
                                 seller.rows[0].name,
                                 listings.rows,
@@ -139,7 +140,7 @@ async function processEmailQueue() {
                                 seller.rows[0].total_reviews,
                                 recipient.rows[0].unsubscribe_token
                             )
-                        );
+                        });
                         emailSentSuccessfully = true;
                     } catch (err) {
                         console.error("Marketplace digest failed:", err.message);
@@ -161,17 +162,18 @@ async function processEmailQueue() {
 
                 if (services.rows.length > 0) {
                     try {
-                        await sendEmail(
-                            recipient.rows[0].email,
-                            `🛠 ${seller.rows[0].name} added ${services.rows.length} new service${services.rows.length > 1 ? "s" : ""}`,
-                            serviceDigestTemplate(
+                        await sendEmail({
+                            from: process.env.EMAIL_FROM,
+                            to: recipient.rows[0].email,
+                            subject: `🛠 ${seller.rows[0].name} added ${services.rows.length} new service${services.rows.length > 1 ? "s" : ""}`,
+                            html: serviceDigestTemplate(
                                 recipient.rows[0].name,
                                 seller.rows[0].name,
                                 services.rows,
                                 seller.rows[0].average_rating,
                                 recipient.rows[0].unsubscribe_token
                             )
-                        );
+                        });
                         emailSentSuccessfully = true;
                     } catch (err) {
                         console.error("Service digest failed:", err.message);
