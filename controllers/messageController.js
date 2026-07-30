@@ -90,11 +90,16 @@ exports.sendMessage = async (req, res) => {
             // Send email only if receiver is offline AND has a valid email address
             const isReceiverOnline = onlineUsers && onlineUsers.has(Number(receiver_id));
             if (!isReceiverOnline && receiverEmail) {
-                await sendEmail(
-                    receiverEmail,
-                    `💬 New message from ${senderName}`,
-                    messageTemplate(receiverName, senderName, message)
-                );
+                await sendEmail({
+                    from: process.env.EMAIL_FROM,
+                    to: receiverEmail,
+                    subject: `💬 New message from ${senderName}`,
+                    html: messageTemplate(
+                        receiverName,
+                        senderName,
+                        message
+                    )
+                });
             }
         } catch (backgroundErr) {
             console.error("Background task error (Notification/Email):", backgroundErr.message);
