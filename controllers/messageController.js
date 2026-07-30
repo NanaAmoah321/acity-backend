@@ -184,15 +184,25 @@ exports.getConversation = async (req, res) => {
             `
             SELECT
                 messages.*,
+
                 sender.name AS sender_name,
-                sender.profile_picture AS sender_profile_picture,
                 receiver.name AS receiver_name,
-                receiver.profile_picture AS receiver_profile_picture
+
+                CASE
+                    WHEN messages.sender_id = $1
+                        THEN receiver.profile_picture
+                    ELSE sender.profile_picture
+                END AS other_user_profile_picture
+
             FROM messages
-            JOIN users sender ON sender.id = messages.sender_id
-            JOIN users receiver ON receiver.id = messages.receiver_id
+            JOIN users sender
+                ON sender.id = messages.sender_id
+            JOIN users receiver
+                ON receiver.id = messages.receiver_id
+
             WHERE (sender_id = $1 AND receiver_id = $2)
-               OR (sender_id = $2 AND receiver_id = $1)
+            OR (sender_id = $2 AND receiver_id = $1)
+
             ORDER BY created_at ASC
             `,
             [activeUserId, otherUserId]
