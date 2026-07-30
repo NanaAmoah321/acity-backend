@@ -175,50 +175,44 @@ exports.getConversations = async (req, res) => {
 };
 
 exports.getConversation = async (req, res) => {
+    const activeUserId = req.user.id;
     const otherUserId = req.params.userId;
 
     try {
+        // 1. Fetch conversation history
         const result = await pool.query(
             `
             SELECT
                 messages.*,
-
                 sender.name AS sender_name,
                 sender.profile_picture AS sender_profile_picture,
-
                 receiver.name AS receiver_name,
                 receiver.profile_picture AS receiver_profile_picture
-
             FROM messages
-
-            JOIN users sender
-                ON sender.id = messages.sender_id
-
-            JOIN users receiver
-                ON receiver.id = messages.receiver_id
-
+            JOIN users sender ON sender.id = messages.sender_id
+            JOIN users receiver ON receiver.id = messages.receiver_id
             WHERE (sender_id = $1 AND receiver_id = $2)
                OR (sender_id = $2 AND receiver_id = $1)
-
             ORDER BY created_at ASC
             `,
-            [req.user.id, otherUserId]
+            [activeUserId, otherUserId]
         );
 
-        await pool.query(
+        // 2. Mark incoming messages as read in the background
+        pool.query(
             `
             UPDATE messages
             SET is_read = TRUE
-            WHERE sender_id = $1 AND receiver_id = $2
+            WHERE sender_id = $1 AND receiver_id = $2 AND is_read = FALSE
             `,
-            [otherUserId, req.user.id]
-        );
+            [otherUserId, activeUserId]
+        ).catch(err => console.error("Error marking messages as read:", err));
 
         return res.json(result.rows);
 
     } catch (err) {
-        console.error(err);
-        return res.status(500).json({ error: err.message });
+        console.error("getConversation Error:", err);
+        return res.status(500).json({ error: "Failed to retrieve conversation" });
     }
 };
 
