@@ -25,6 +25,13 @@ router.get(
   serviceController.getMyServices
 );
 
+router.post(
+  "/:id/requests",
+  authMiddleware,
+  resourceLimiter,
+  serviceController.createServiceRequest
+);
+
 router.get(
   "/:id",
   serviceController.getServiceById
