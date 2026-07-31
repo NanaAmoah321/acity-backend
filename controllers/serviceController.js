@@ -400,6 +400,7 @@ exports.createServiceRequest = async (req, res) => {
 
             await client.query("COMMIT");
 
+            
             const io = req.app.get("io");
 
             if (io) {
