@@ -7,10 +7,12 @@ const { sendEmail } =
 require("../utils/email");
 
 const {
-
-    newServiceTemplate
-
+    messageTemplate
 } = require("../utils/emailTemplates");
+
+const {
+    createNotification
+} = require("../utils/notifications");
 
 function formatServiceRequestMessage(service, details) {
     const labels = {
@@ -316,13 +318,21 @@ exports.createServiceRequest = async (req, res) => {
         const serviceResult = await pool.query(
             `
             SELECT
-                id,
-                user_id,
-                title,
-                category,
-                availability
+                services.id,
+                services.user_id,
+                services.title,
+                services.category,
+                services.availability,
+
+                users.name AS provider_name,
+                users.email AS provider_email
+
             FROM services
-            WHERE id = $1
+
+            JOIN users
+                ON users.id = services.user_id
+
+            WHERE services.id = $1
             `,
             [serviceId]
         );
@@ -347,6 +357,18 @@ exports.createServiceRequest = async (req, res) => {
             });
         }
 
+        const requesterResult = await pool.query(
+            `
+            SELECT name
+            FROM users
+            WHERE id = $1
+            `,
+            [req.user.id]
+        );
+
+        const requesterName =
+            requesterResult.rows[0]?.name || "A student";
+
         const requestMessage =
             formatServiceRequestMessage(
                 service,
@@ -354,6 +376,9 @@ exports.createServiceRequest = async (req, res) => {
             );
 
         const client = await pool.connect();
+
+        let request;
+        let message;
 
         try {
             await client.query("BEGIN");
@@ -400,23 +425,8 @@ exports.createServiceRequest = async (req, res) => {
 
             await client.query("COMMIT");
 
-
-            const io = req.app.get("io");
-
-            if (io) {
-                const socketMessage = messageResult.rows[0];
-
-                io.to(`user_${service.user_id}`)
-                    .emit("new_message", socketMessage);
-
-                io.to(`user_${req.user.id}`)
-                    .emit("new_message", socketMessage);
-            }
-
-            return res.status(201).json({
-                request: requestResult.rows[0],
-                message: messageResult.rows[0]
-            });
+            request = requestResult.rows[0];
+            message = messageResult.rows[0];
 
         } catch (error) {
             await client.query("ROLLBACK");
@@ -425,6 +435,66 @@ exports.createServiceRequest = async (req, res) => {
         } finally {
             client.release();
         }
+
+        const io = req.app.get("io");
+
+        if (io) {
+            io.to(`user_${service.user_id}`)
+                .emit("new_message", message);
+
+            io.to(`user_${req.user.id}`)
+                .emit("new_message", message);
+        }
+
+        const onlineUsers = req.app.get("onlineUsers");
+
+        const backgroundTasks = [
+            createNotification(
+                service.user_id,
+                "New Service Request",
+                `${requesterName} requested ${service.title}.`,
+                "message",
+                request.id,
+                null,
+                req.user.id
+            )
+        ];
+
+        const isProviderOnline =
+            onlineUsers &&
+            onlineUsers.has(Number(service.user_id));
+
+        if (!isProviderOnline && service.provider_email) {
+            backgroundTasks.push(
+                sendEmail({
+                    from: process.env.EMAIL_FROM,
+                    to: service.provider_email,
+                    subject: `📋 New request for ${service.title}`,
+                    html: messageTemplate(
+                        service.provider_name,
+                        requesterName,
+                        requestMessage
+                    )
+                })
+            );
+        }
+
+        Promise.allSettled(backgroundTasks)
+            .then(results => {
+                results.forEach(result => {
+                    if (result.status === "rejected") {
+                        console.error(
+                            "Service request background task failed:",
+                            result.reason
+                        );
+                    }
+                });
+            });
+
+        return res.status(201).json({
+            request,
+            message
+        });
 
     } catch (err) {
         console.error("Create service request error:", err);
@@ -481,6 +551,205 @@ exports.getIncomingServiceRequests = async (req, res) => {
         return res.status(500).json({
             error: "Could not load incoming service requests."
         });
+    }
+};
+
+exports.updateServiceRequestStatus = async (req, res) => {
+    const requestId = Number(req.params.id);
+    const { status } = req.body;
+
+    if (!Number.isInteger(requestId) || requestId <= 0) {
+        return res.status(400).json({
+            error: "Invalid service request ID."
+        });
+    }
+
+    if (!["accepted", "declined"].includes(status)) {
+        return res.status(400).json({
+            error: "Status must be accepted or declined."
+        });
+    }
+
+    const client = await pool.connect();
+
+    try {
+        await client.query("BEGIN");
+
+        const requestResult = await client.query(
+            `
+            SELECT
+                service_requests.*,
+
+                services.title AS service_title,
+
+                requester.name AS requester_name,
+                requester.email AS requester_email,
+
+                provider.name AS provider_name
+
+            FROM service_requests
+
+            JOIN services
+                ON services.id = service_requests.service_id
+
+            JOIN users requester
+                ON requester.id = service_requests.requester_id
+
+            JOIN users provider
+                ON provider.id = service_requests.provider_id
+
+            WHERE service_requests.id = $1
+              AND service_requests.provider_id = $2
+
+            FOR UPDATE
+            `,
+            [requestId, req.user.id]
+        );
+
+        if (requestResult.rows.length === 0) {
+            await client.query("ROLLBACK");
+
+            return res.status(404).json({
+                error: "Service request not found."
+            });
+        }
+
+        const request = requestResult.rows[0];
+
+        if (request.status !== "pending") {
+            await client.query("ROLLBACK");
+
+            return res.status(409).json({
+                error: "This request has already been updated."
+            });
+        }
+
+        const statusMessage =
+            status === "accepted"
+                ? `✅ Your request for ${request.service_title} has been accepted. You can continue the conversation here.`
+                : `❌ Your request for ${request.service_title} was declined. You can message the provider for more information.`;
+
+        const updatedRequest = await client.query(
+            `
+            UPDATE service_requests
+            SET
+                status = $1,
+                updated_at = NOW()
+            WHERE id = $2
+            RETURNING *
+            `,
+            [status, requestId]
+        );
+
+        const messageResult = await client.query(
+            `
+            INSERT INTO messages
+            (
+                sender_id,
+                receiver_id,
+                message
+            )
+            VALUES ($1, $2, $3)
+            RETURNING *
+            `,
+            [
+                req.user.id,
+                request.requester_id,
+                statusMessage
+            ]
+        );
+
+        await client.query("COMMIT");
+
+        const message = messageResult.rows[0];
+
+        const io = req.app.get("io");
+
+        if (io) {
+            io.to(`user_${request.requester_id}`)
+                .emit("new_message", message);
+
+            io.to(`user_${req.user.id}`)
+                .emit("new_message", message);
+        }
+
+        const onlineUsers = req.app.get("onlineUsers");
+
+        const backgroundTasks = [
+            createNotification(
+                request.requester_id,
+                status === "accepted"
+                    ? "Service Request Accepted"
+                    : "Service Request Declined",
+                `${request.provider_name} ${status} your request for ${request.service_title}.`,
+                "message",
+                requestId,
+                null,
+                req.user.id
+            )
+        ];
+
+        const isRequesterOnline =
+            onlineUsers &&
+            onlineUsers.has(
+                Number(request.requester_id)
+            );
+
+        if (
+            !isRequesterOnline &&
+            request.requester_email
+        ) {
+            backgroundTasks.push(
+                sendEmail({
+                    from: process.env.EMAIL_FROM,
+                    to: request.requester_email,
+                    subject:
+                        status === "accepted"
+                            ? `✅ Your ${request.service_title} request was accepted`
+                            : `❌ Your ${request.service_title} request was declined`,
+                    html: messageTemplate(
+                        request.requester_name,
+                        request.provider_name,
+                        statusMessage
+                    )
+                })
+            );
+        }
+
+        Promise.allSettled(backgroundTasks)
+            .then(results => {
+                results.forEach(result => {
+                    if (result.status === "rejected") {
+                        console.error(
+                            "Service status background task failed:",
+                            result.reason
+                        );
+                    }
+                });
+            });
+
+        return res.json({
+            message:
+                status === "accepted"
+                    ? "Service request accepted."
+                    : "Service request declined.",
+            request: updatedRequest.rows[0]
+        });
+
+    } catch (err) {
+        await client.query("ROLLBACK");
+
+        console.error(
+            "Update service request status error:",
+            err
+        );
+
+        return res.status(500).json({
+            error: "Could not update service request."
+        });
+
+    } finally {
+        client.release();
     }
 };
 

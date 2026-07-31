@@ -38,6 +38,13 @@ router.get(
     serviceController.getIncomingServiceRequests
 );
 
+router.patch(
+    "/requests/:id/status",
+    authMiddleware,
+    resourceLimiter,
+    serviceController.updateServiceRequestStatus
+);
+
 router.get(
   "/:id",
   serviceController.getServiceById
