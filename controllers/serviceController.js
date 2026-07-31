@@ -400,7 +400,7 @@ exports.createServiceRequest = async (req, res) => {
 
             await client.query("COMMIT");
 
-            
+
             const io = req.app.get("io");
 
             if (io) {
@@ -431,6 +431,55 @@ exports.createServiceRequest = async (req, res) => {
 
         return res.status(500).json({
             error: "Could not send service request."
+        });
+    }
+};
+
+exports.getIncomingServiceRequests = async (req, res) => {
+    try {
+        const result = await pool.query(
+            `
+            SELECT
+                service_requests.*,
+
+                services.title AS service_title,
+                services.rate AS service_rate,
+                services.rate_type AS service_rate_type,
+
+                users.name AS requester_name,
+                users.profile_picture AS requester_profile_picture
+
+            FROM service_requests
+
+            JOIN services
+                ON services.id = service_requests.service_id
+
+            JOIN users
+                ON users.id = service_requests.requester_id
+
+            WHERE service_requests.provider_id = $1
+
+            ORDER BY
+                CASE
+                    WHEN service_requests.status = 'pending'
+                        THEN 0
+                    ELSE 1
+                END,
+                service_requests.created_at DESC
+            `,
+            [req.user.id]
+        );
+
+        return res.json(result.rows);
+
+    } catch (err) {
+        console.error(
+            "Get incoming service requests error:",
+            err
+        );
+
+        return res.status(500).json({
+            error: "Could not load incoming service requests."
         });
     }
 };

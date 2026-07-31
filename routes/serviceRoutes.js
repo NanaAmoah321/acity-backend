@@ -33,6 +33,12 @@ router.post(
 );
 
 router.get(
+    "/incoming",
+    authMiddleware,
+    serviceController.getIncomingServiceRequests
+);
+
+router.get(
   "/:id",
   serviceController.getServiceById
 );
