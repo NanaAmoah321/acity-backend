@@ -25,4 +25,9 @@ router.get(
   serviceController.getMyServices
 );
 
+router.get(
+  "/:id",
+  serviceController.getServiceById
+);
+
 module.exports = router;

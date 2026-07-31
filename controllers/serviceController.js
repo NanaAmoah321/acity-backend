@@ -246,3 +246,63 @@ exports.getMyServices = async (req, res) => {
     });
   }
 };
+
+exports.getServiceById = async (req, res) => {
+    const serviceId = Number(req.params.id);
+
+    if (!Number.isInteger(serviceId) || serviceId <= 0) {
+        return res.status(400).json({
+            error: "Invalid service ID."
+        });
+    }
+
+    try {
+        const result = await pool.query(
+            `
+            SELECT
+                services.*,
+                users.name AS provider_name,
+                users.profile_picture AS provider_profile_picture,
+
+                COALESCE(
+                    ROUND(AVG(reviews.rating), 1),
+                    0
+                ) AS average_rating,
+
+                COUNT(reviews.id)::INT AS total_reviews
+
+            FROM services
+
+            JOIN users
+                ON users.id = services.user_id
+
+            LEFT JOIN reviews
+                ON reviews.reviewed_user_id = users.id
+
+            WHERE services.id = $1
+
+            GROUP BY
+                services.id,
+                users.id,
+                users.name,
+                users.profile_picture
+            `,
+            [serviceId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                error: "Service not found."
+            });
+        }
+
+        return res.json(result.rows[0]);
+
+    } catch (err) {
+        console.error("Get service error:", err);
+
+        return res.status(500).json({
+            error: "Could not load service."
+        });
+    }
+};
