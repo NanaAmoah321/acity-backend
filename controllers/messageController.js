@@ -179,8 +179,21 @@ exports.sendMessage = async (req, res) => {
         const onlineUsers = req.app.get("onlineUsers");
 
         const socketMessage = {
+
             ...result.rows[0],
-            sender_name: senderName
+
+            sender_name: senderName,
+
+            ai: {
+
+                detectedLanguage:
+                    aiResult.detectedLanguage,
+
+                suggestedReplies:
+                    aiResult.suggestedReplies
+
+            }
+
         };
 
         if (io) {
