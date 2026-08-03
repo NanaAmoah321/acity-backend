@@ -8,7 +8,7 @@ const { messageSchema } =
 require("../schemas/messageSchema");
 
 const {
-    translateMessage
+    analyzeMessage
 } = require("../ai/messageAgent");
 
 exports.sendMessage = async (req, res) => {
@@ -22,26 +22,71 @@ exports.sendMessage = async (req, res) => {
         return res.status(400).json({ error: validationError });
     }
 
-    let translatedMessage = message;
-    let detectedLanguage = "english";
+    let aiResult = {
+
+        translatedMessage: message,
+
+        detectedLanguage: "English",
+
+        isSpam: false,
+
+        spamReason: "",
+
+        isScam: false,
+
+        scamReason: "",
+
+        isToxic: false,
+
+        toxicityReason: "",
+
+        suggestedReplies: []
+
+    };
 
     try {
 
-        const translation =
-            await translateMessage(message);
-
-        translatedMessage =
-            translation.translatedMessage;
-
-        detectedLanguage =
-            translation.detectedLanguage;
+        aiResult =
+            await analyzeMessage(message);
 
     } catch (error) {
 
         console.error(
-            "Translation failed:",
+            "Message AI failed:",
             error.message
         );
+
+    }
+
+    if (
+        aiResult.isSpam ||
+        aiResult.isScam ||
+        aiResult.isToxic
+    ) {
+
+        return res.status(400).json({
+
+            success: false,
+
+            error: "Message blocked by Acity AI.",
+
+            moderation: {
+
+                spam: aiResult.isSpam,
+
+                scam: aiResult.isScam,
+
+                toxic: aiResult.isToxic,
+
+                spamReason: aiResult.spamReason,
+
+                scamReason: aiResult.scamReason,
+
+                toxicityReason: aiResult.toxicityReason
+
+            }
+
+        });
 
     }
 
@@ -73,9 +118,9 @@ exports.sendMessage = async (req, res) => {
     try {
         // 1. Insert message into database
         const result = await pool.query(
-            `
-            INSERT INTO messages
-            (
+        `
+        INSERT INTO messages
+        (
             sender_id,
             receiver_id,
             message,
@@ -85,11 +130,40 @@ exports.sendMessage = async (req, res) => {
             file_url,
             file_name,
             file_type
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-            RETURNING *
-            `,
-            [req.user.id, receiver_id, translatedMessage, detectedLanguage, file_url, file_name, file_type]
+        )
+        VALUES
+        (
+            $1,
+            $2,
+            $3,
+            $4,
+            $5,
+            $6,
+            $7,
+            $8,
+            $9
+        )
+        RETURNING *;
+        `,
+        [
+            req.user.id,
+
+            receiver_id,
+
+            aiResult.translatedMessage,
+
+            message,
+
+            aiResult.translatedMessage,
+
+            aiResult.detectedLanguage,
+
+            file_url,
+
+            file_name,
+
+            file_type
+        ]
         );
 
         // 2. Fetch sender & receiver info
@@ -115,14 +189,28 @@ exports.sendMessage = async (req, res) => {
         }
 
         // 4. Return success response to user IMMEDIATELY
-        res.json(result.rows[0]);
+        res.json({
+
+            ...result.rows[0],
+
+            ai: {
+
+                detectedLanguage:
+                    aiResult.detectedLanguage,
+
+                suggestedReplies:
+                    aiResult.suggestedReplies
+
+            }
+
+        });
 
         // 5. Background tasks (wrapped in safe try/catch so failure won't crash Express response)
         try {
             await createNotification(
                 receiver_id,
                 "New Message",
-                `${senderName}: "${translatedMessage.substring(0, 50)}${translatedMessage.length > 50 ? "..." : ""}"`,
+                `${senderName}: "${aiResult.translatedMessage.substring(0, 50)}${aiResult.translatedMessage.length > 50 ? "..." : ""}"`,
                 "message",
                 null,
                 null,
@@ -139,7 +227,7 @@ exports.sendMessage = async (req, res) => {
                     html: messageTemplate(
                         receiverName,
                         senderName,
-                        translatedMessage
+                        aiResult.translatedMessage
                     )
                 });
             }
