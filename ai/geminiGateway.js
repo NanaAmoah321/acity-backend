@@ -94,10 +94,14 @@ async function generateStructuredContent({
       ],
       config: {
         systemInstruction,
-        responseMimeType: "application/json",
-        responseSchema,
+        responseFormat: {
+        text: {
+            mimeType: "application/json",
+            schema: responseSchema
+        }
+        },
         maxOutputTokens: 1000
-      }
+            }
     });
 
     if (!response.text) {

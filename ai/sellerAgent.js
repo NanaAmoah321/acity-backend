@@ -2,7 +2,7 @@ const { z } = require("zod");
 const {
   AiGatewayError,
   generateStructuredContent,
-  getGeminiType
+  
 } = require("./geminiGateway");
 
 const listingDraftSchema = z.object({
@@ -21,38 +21,38 @@ const listingSuggestionSchema = z.object({
   safetyNotes: z.array(z.string().min(3).max(160)).max(3)
 });
 
-function createSellerResponseSchema(Type) {
+function createSellerResponseSchema() {
   return {
-    type: Type.OBJECT,
+    type: "object",
     properties: {
       improvedTitle: {
-        type: Type.STRING,
+        type: "string",
         description: "A clear and truthful marketplace title."
       },
       improvedDescription: {
-        type: Type.STRING,
+        type: "string",
         description: "A concise factual description based only on the supplied draft."
       },
       suggestedPrice: {
-        type: Type.NUMBER,
+        type: "number",
         minimum: 0,
         maximum: 1000000,
         description: "A non-negative price estimate in Ghana cedis."
       },
       priceRationale: {
-        type: Type.STRING,
+        type: "string",
         description: "A short explanation that this is an estimate, not market research."
       },
       tags: {
-        type: Type.ARRAY,
-        items: { type: Type.STRING },
+        type: "array",
+        items: { type: "string" },
         minItems: 3,
         maxItems: 6,
         description: "Three to six relevant search tags."
       },
       safetyNotes: {
-        type: Type.ARRAY,
-        items: { type: Type.STRING },
+        type: "array",
+        items: { type: "string" },
         maxItems: 3,
         description: "Up to three practical marketplace-safety reminders."
       }
@@ -82,7 +82,7 @@ The suggested price is an estimate in Ghana cedis, not a market valuation.
 
 async function improveListing(listingDraft) {
   const validatedDraft = listingDraftSchema.parse(listingDraft);
-  const Type = await getGeminiType();
+ 
 
   const prompt = `
 Improve this marketplace listing draft.
@@ -97,7 +97,7 @@ Return only the requested structured response.
   const result = await generateStructuredContent({
     systemInstruction: sellerSystemInstruction,
     prompt,
-    responseSchema: createSellerResponseSchema(Type)
+    responseSchema: createSellerResponseSchema()
   });
 
   try {
