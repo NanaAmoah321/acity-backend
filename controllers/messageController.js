@@ -4,13 +4,45 @@ const { sendEmail } = require("../utils/email");
 const supabase = require("../config/supabase");
 const { validateMessage } = require("../utils/validators");
 const { messageTemplate } = require("../utils/emailTemplates");
+const { messageSchema } =
+require("../schemas/messageSchema");
+
+const {
+    translateMessage
+} = require("../ai/messageAgent");
 
 exports.sendMessage = async (req, res) => {
-    const { receiver_id, message } = req.body;
+    const {
+        receiver_id,
+        message
+    } = messageSchema.parse(req.body);
 
     const validationError = validateMessage({ message });
     if (validationError) {
         return res.status(400).json({ error: validationError });
+    }
+
+    let translatedMessage = message;
+    let detectedLanguage = "english";
+
+    try {
+
+        const translation =
+            await translateMessage(message);
+
+        translatedMessage =
+            translation.translatedMessage;
+
+        detectedLanguage =
+            translation.detectedLanguage;
+
+    } catch (error) {
+
+        console.error(
+            "Translation failed:",
+            error.message
+        );
+
     }
 
     let file_url = null;
@@ -43,11 +75,21 @@ exports.sendMessage = async (req, res) => {
         const result = await pool.query(
             `
             INSERT INTO messages
-            (sender_id, receiver_id, message, file_url, file_name, file_type)
-            VALUES ($1, $2, $3, $4, $5, $6)
+            (
+            sender_id,
+            receiver_id,
+            message,
+            original_message,
+            translated_message,
+            detected_language,
+            file_url,
+            file_name,
+            file_type
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             RETURNING *
             `,
-            [req.user.id, receiver_id, message, file_url, file_name, file_type]
+            [req.user.id, receiver_id, translatedMessage, detectedLanguage, file_url, file_name, file_type]
         );
 
         // 2. Fetch sender & receiver info
@@ -80,7 +122,7 @@ exports.sendMessage = async (req, res) => {
             await createNotification(
                 receiver_id,
                 "New Message",
-                `${senderName}: "${message.substring(0, 50)}${message.length > 50 ? "..." : ""}"`,
+                `${senderName}: "${translatedMessage.substring(0, 50)}${translatedMessage.length > 50 ? "..." : ""}"`,
                 "message",
                 null,
                 null,
@@ -97,7 +139,7 @@ exports.sendMessage = async (req, res) => {
                     html: messageTemplate(
                         receiverName,
                         senderName,
-                        message
+                        translatedMessage
                     )
                 });
             }
