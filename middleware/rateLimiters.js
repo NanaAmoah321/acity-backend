@@ -1,4 +1,7 @@
-const rateLimit = require("express-rate-limit");
+const {
+    rateLimit,
+    ipKeyGenerator
+} = require("express-rate-limit");
 
 // Global limiter
 const globalLimiter = rateLimit({
@@ -28,9 +31,9 @@ const resourceLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: 15,
     keyGenerator: (req) =>
-        req.user
-            ? `user_${req.user.id}`
-            : req.ip,
+    req.user?.id
+        ? `user_${req.user.id}`
+        : ipKeyGenerator(req.ip),
     message: {
         error: "You are doing that too fast. Please wait a moment."
     }

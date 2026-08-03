@@ -6,7 +6,7 @@ const cors = require("cors");
 require("dotenv").config();
 
 const pool = require("./config/db");
-
+const aiRoutes = require("./routes/aiRoutes");
 const listingRoutes = require("./routes/listingRoutes");
 const authRoutes = require("./routes/authRoutes");
 const serviceRoutes = require("./routes/serviceRoutes");
@@ -105,6 +105,7 @@ app.use(cors({
 }));
 
 // Request parsers & rate limiters must sit ABOVE routes
+app.use("/api/ai", express.json({ limit: "10kb" }));
 app.use(express.json({ limit: "10mb" }));
 app.use(globalLimiter);
 
@@ -149,6 +150,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/follow", followRoutes);
 app.use("/api/email", emailRoutes);
+app.use("/api/ai", aiRoutes);
 
 app.get("/", (req, res) => {
     res.sendStatus(404);

@@ -13,6 +13,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@google/genai": "^2.15.0",
     "@supabase/supabase-js": "^2.108.2",
     "bcrypt": "^6.0.0",
     "bullmq": "^5.79.3",
@@ -28,7 +29,8 @@
     "nodemailer": "^9.0.1",
     "pg": "^8.20.0",
     "resend": "^6.16.0",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
