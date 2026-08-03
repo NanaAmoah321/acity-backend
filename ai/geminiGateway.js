@@ -111,12 +111,14 @@ async function generateStructuredContent({
     }
 
     try {
-      return JSON.parse(response.text);
-    } catch {
-      throw new AiGatewayError("AI service returned invalid JSON.", {
-        code: "AI_INVALID_JSON"
-      });
-    }
+        return JSON.parse(response.text);
+        } catch {
+        console.error("Gemini non-JSON response preview:", response.text.slice(0, 1000));
+
+        throw new AiGatewayError("AI service returned invalid JSON.", {
+            code: "AI_INVALID_JSON"
+        });
+        }
   } catch (error) {
     if (error instanceof AiGatewayError) {
       throw error;
