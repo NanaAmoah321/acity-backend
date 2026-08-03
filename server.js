@@ -6,6 +6,7 @@ const cors = require("cors");
 require("dotenv").config();
 
 const pool = require("./config/db");
+const buyerAiRoutes = require("./routes/buyerAiRoutes");
 const aiRoutes = require("./routes/aiRoutes");
 const listingRoutes = require("./routes/listingRoutes");
 const authRoutes = require("./routes/authRoutes");
@@ -151,6 +152,7 @@ app.use("/api/reviews", reviewRoutes);
 app.use("/api/follow", followRoutes);
 app.use("/api/email", emailRoutes);
 app.use("/api/ai", aiRoutes);
+app.use("/api/ai", buyerAiRoutes);
 
 app.get("/", (req, res) => {
     res.sendStatus(404);
