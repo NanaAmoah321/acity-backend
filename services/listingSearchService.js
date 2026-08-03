@@ -1,47 +1,45 @@
-const pool = require("../config/db");
+const sql = `
+    SELECT
+        id,
+        user_id,
+        title,
+        description,
+        category,
+        price,
+        image_url,
+        stock_quantity,
+        created_at,
 
-/**
- * Search marketplace listings using PostgreSQL Full-Text Search.
- * Returns real candidate listings for Gemini to rank.
- */
-async function searchListings(query) {
-    const cleanedQuery = query.trim();
-
-    if (!cleanedQuery) {
-        return [];
-    }
-
-    const sql = `
-        SELECT
-            id,
-            user_id,
-            title,
-            description,
-            category,
-            price,
-            image_url,
-            created_at,
+        GREATEST(
             ts_rank(
                 search_vector,
                 plainto_tsquery('simple', $1)
-            ) AS relevance
-        FROM listings
-        WHERE
-            status = 'available'
-            AND flagged = FALSE
-            AND stock_quantity > 0
-            AND search_vector @@ plainto_tsquery('simple', $1)
-        ORDER BY
-            relevance DESC,
-            created_at DESC
-        LIMIT 30;
-    `;
+            ),
+            0
+        ) AS relevance
 
-    const { rows } = await pool.query(sql, [cleanedQuery]);
+    FROM listings
 
-    return rows;
-}
+    WHERE
+        status = 'available'
+        AND flagged = FALSE
+        AND (
+            search_vector @@ plainto_tsquery('simple', $1)
+            OR title ILIKE '%' || $1 || '%'
+            OR description ILIKE '%' || $1 || '%'
+            OR category ILIKE '%' || $1 || '%'
+        )
 
-module.exports = {
-    searchListings
-};
+    ORDER BY
+
+        CASE
+            WHEN stock_quantity > 0 THEN 0
+            ELSE 1
+        END,
+
+        relevance DESC,
+
+        created_at DESC
+
+    LIMIT 30;
+`;
