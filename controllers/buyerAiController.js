@@ -12,6 +12,10 @@ const {
     AiGatewayError
 } = require("../ai/geminiGateway");
 
+const {
+    parseSearchIntent
+} = require("../utils/searchIntentParser");
+
 function buildExplanation(intent, resultCount) {
 
     if (resultCount === 0) {
@@ -60,8 +64,25 @@ async function search(req, res) {
         const { query } =
             buyerSearchSchema.parse(req.body);
 
-        const intent =
-            await extractSearchIntent(query);
+        let intent;
+
+        const parsed =
+            parseSearchIntent(query);
+
+        if (parsed.parsed) {
+
+            intent = parsed.intent;
+
+            console.log("Local Buyer Parser Used");
+
+        } else {
+
+            console.log("Gemini Buyer Parser Used");
+
+            intent =
+                await extractSearchIntent(query);
+
+        }
 
         const results =
             await searchListings(intent);

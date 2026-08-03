@@ -61,7 +61,7 @@ async function searchListings(intent) {
 
     }
 
-    where.push(`(${keywordClauses.join(" OR ")})`);
+    where.push(`(${keywordClauses.join(" AND ")})`);
 
     // Price filters
 

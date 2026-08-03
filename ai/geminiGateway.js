@@ -49,7 +49,8 @@ function toSafeGatewayError(error) {
   const upstreamStatus = error?.status || error?.statusCode;
 
   if (upstreamStatus === 429) {
-    return new AiGatewayError("AI service is temporarily busy. Please try again shortly.", {
+    return new AiGatewayError(
+    "Acity AI has reached its usage limit. Please try again in about a minute.",{
       statusCode: 503,
       code: "AI_RATE_LIMITED"
     });
