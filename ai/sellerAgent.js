@@ -23,6 +23,7 @@ const listingSuggestionSchema = z.object({
 
 function createSellerResponseSchema() {
   return {
+    $schema: "https://json-schema.org/draft/2020-12/schema",
     type: "object",
     properties: {
       improvedTitle: {
