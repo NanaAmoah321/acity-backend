@@ -1,31 +1,22 @@
 const { ZodError } = require("zod");
-const {
-  improveListing,
-  listingDraftSchema
-} = require("../ai/sellerAgent");
+const { improveListing, listingDraftSchema } = require("../ai/sellerAgent");
 const { AiGatewayError } = require("../ai/geminiGateway");
-
-function sendValidationError(res, error) {
-  return res.status(400).json({
-    error: {
-      code: "VALIDATION_ERROR",
-      message: "Please check the listing details and try again.",
-      fields: error.issues.map((issue) => ({
-        field: issue.path.join("."),
-        message: issue.message
-      }))
-    }
-  });
-}
+const { getPricingInsight } = require("../services/pricingService");
 
 async function improveListingDraft(req, res) {
   try {
     const listingDraft = listingDraftSchema.parse(req.body);
 
-    const suggestions = await improveListing(listingDraft);
+    const [suggestions, pricing] = await Promise.all([
+      improveListing(listingDraft),
+      getPricingInsight(listingDraft.category)
+    ]);
 
     return res.status(200).json({
-      data: suggestions,
+      data: {
+        ...suggestions,
+        pricing
+      },
       meta: {
         agent: "seller",
         advisoryOnly: true
@@ -33,7 +24,12 @@ async function improveListingDraft(req, res) {
     });
   } catch (error) {
     if (error instanceof ZodError) {
-      return sendValidationError(res, error);
+      return res.status(400).json({
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "Please check the listing details and try again."
+        }
+      });
     }
 
     if (error instanceof AiGatewayError) {
@@ -59,6 +55,4 @@ async function improveListingDraft(req, res) {
   }
 }
 
-module.exports = {
-  improveListingDraft
-};
+module.exports = { improveListingDraft };
