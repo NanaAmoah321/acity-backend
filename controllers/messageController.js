@@ -48,6 +48,8 @@ exports.sendMessage = async (req, res) => {
 
         aiResult =
             await analyzeMessage(message);
+        
+        console.log("AI Result:", aiResult);
 
     } catch (error) {
 
