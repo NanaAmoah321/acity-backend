@@ -15,43 +15,70 @@ async function searchListings(intent) {
 
     const {
         keywords,
-        sortBy,
-        sortDirection,
-        minPrice,
-        maxPrice
+        sortBy = "relevance",
+        sortDirection = "desc",
+        minPrice = null,
+        maxPrice = null
     } = intent;
 
-    const cleanedKeywords = keywords
-        .map(word => String(word).trim())
+    const cleanedKeywords = (keywords || [])
+        .map(keyword => String(keyword).trim())
         .filter(Boolean);
 
     if (cleanedKeywords.length === 0) {
         return [];
     }
 
-    const keywordQuery = cleanedKeywords.join(" ");
+    // Used for ts_rank()
+    const searchText = cleanedKeywords.join(" ");
 
-    const values = [keywordQuery];
+    // Parameter array
+    const values = [searchText];
 
-    let where = `
-        status = 'available'
-        AND flagged = FALSE
-        AND (
-            search_vector @@ plainto_tsquery('simple', $1)
-            OR title ILIKE '%' || $1 || '%'
-            OR description ILIKE '%' || $1 || '%'
-            OR category ILIKE '%' || $1 || '%'
+    // WHERE clauses
+    const where = [
+        "status = 'available'",
+        "flagged = FALSE"
+    ];
+
+    // Keyword matching
+    const keywordClauses = [];
+
+    for (const keyword of cleanedKeywords) {
+
+        values.push(keyword);
+
+        const index = values.length;
+
+        keywordClauses.push(`
+        (
+            search_vector @@ plainto_tsquery('simple', $${index})
+            OR title ILIKE '%' || $${index} || '%'
+            OR description ILIKE '%' || $${index} || '%'
+            OR category ILIKE '%' || $${index} || '%'
         )
-    `;
+        `);
+
+    }
+
+    where.push(`(${keywordClauses.join(" OR ")})`);
+
+    // Price filters
 
     if (minPrice !== null) {
+
         values.push(minPrice);
-        where += ` AND price >= $${values.length}`;
+
+        where.push(`price >= $${values.length}`);
+
     }
 
     if (maxPrice !== null) {
+
         values.push(maxPrice);
-        where += ` AND price <= $${values.length}`;
+
+        where.push(`price <= $${values.length}`);
+
     }
 
     const orderColumn =
@@ -61,45 +88,46 @@ async function searchListings(intent) {
         SORT_DIRECTIONS[sortDirection] || "DESC";
 
     const sql = `
-        SELECT
-            id,
-            user_id,
-            title,
-            description,
-            category,
-            price,
-            image_url,
-            stock_quantity,
-            created_at,
+    SELECT
 
-            ts_rank(
-                search_vector,
-                plainto_tsquery('simple', $1)
-            ) AS relevance
+        id,
+        user_id,
+        title,
+        description,
+        category,
+        price,
+        image_url,
+        stock_quantity,
+        created_at,
 
-        FROM listings
+        ts_rank(
+            search_vector,
+            plainto_tsquery('simple', $1)
+        ) AS relevance
 
-        WHERE
-            ${where}
+    FROM listings
 
-        ORDER BY
+    WHERE
 
-            CASE
-                WHEN stock_quantity > 0 THEN 0
-                ELSE 1
-            END,
+        ${where.join("\nAND\n")}
 
-            ${orderColumn} ${orderDirection},
+    ORDER BY
 
-            relevance DESC,
+        CASE
+            WHEN stock_quantity > 0 THEN 0
+            ELSE 1
+        END,
 
-            created_at DESC
+        ${orderColumn} ${orderDirection},
 
-        LIMIT 30;
+        relevance DESC,
+
+        created_at DESC
+
+    LIMIT 30;
     `;
 
-    const { rows } =
-        await pool.query(sql, values);
+    const { rows } = await pool.query(sql, values);
 
     return rows;
 

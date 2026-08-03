@@ -1,8 +1,7 @@
 const { buyerSearchSchema } = require("../schemas/buyerSearchSchema");
 
 const {
-    extractSearchIntent,
-    rankListings
+    extractSearchIntent
 } = require("../ai/buyerAgent");
 
 const {
@@ -13,100 +12,59 @@ const {
     AiGatewayError
 } = require("../ai/geminiGateway");
 
+function buildExplanation(intent, resultCount) {
+
+    if (resultCount === 0) {
+        return "No matching listings were found.";
+    }
+
+    let message = "Showing";
+
+    switch (intent.sortBy) {
+
+        case "price":
+            message += intent.sortDirection === "asc"
+                ? " the cheapest"
+                : " the most expensive";
+            break;
+
+        case "created_at":
+            message += intent.sortDirection === "desc"
+                ? " the newest"
+                : " the oldest";
+            break;
+
+        default:
+            message += " the most relevant";
+    }
+
+    message += ` ${intent.keywords.join(" ")} listings`;
+
+    if (intent.maxPrice !== null) {
+        message += ` under GH₵${intent.maxPrice}`;
+    }
+
+    if (intent.minPrice !== null) {
+        message += ` above GH₵${intent.minPrice}`;
+    }
+
+    message += ".";
+
+    return message;
+}
+
 async function search(req, res) {
 
     try {
 
-        // Validate request
         const { query } =
             buyerSearchSchema.parse(req.body);
 
-        // AI understands what the buyer wants
         const intent =
             await extractSearchIntent(query);
 
-        // PostgreSQL searches using the extracted intent
-        const candidates =
+        const results =
             await searchListings(intent);
-
-        if (candidates.length === 0) {
-
-            return res.status(200).json({
-
-                success: true,
-
-                query,
-
-                intent,
-
-                explanation:
-                    "No matching listings were found.",
-
-                results: []
-
-            });
-
-        }
-
-        // AI ranks ONLY the real listings
-        const aiResponse =
-            await rankListings(
-                query,
-                candidates
-            );
-
-        const listingMap = new Map(
-
-            candidates.map(listing => [
-
-                listing.id,
-
-                listing
-
-            ])
-
-        );
-
-        const rankedResults =
-
-            aiResponse.rankedListings
-
-                .map(result => {
-
-                    const listing =
-                        listingMap.get(result.id);
-
-                    if (!listing) {
-
-                        return null;
-
-                    }
-
-                    return {
-
-                        ...listing,
-
-                        aiScore:
-                            result.score,
-
-                        aiReason:
-                            result.reason
-
-                    };
-
-                })
-
-                .filter(Boolean)
-
-                .sort(
-
-                    (a, b) =>
-
-                        b.aiScore -
-
-                        a.aiScore
-
-                );
 
         return res.status(200).json({
 
@@ -117,10 +75,12 @@ async function search(req, res) {
             intent,
 
             explanation:
-                aiResponse.overallExplanation,
+                buildExplanation(
+                    intent,
+                    results.length
+                ),
 
-            results:
-                rankedResults
+            results
 
         });
 
@@ -139,11 +99,9 @@ async function search(req, res) {
 
                 success: false,
 
-                error:
-                    "Invalid search query.",
+                error: "Invalid search query.",
 
-                details:
-                    error.issues
+                details: error.issues
 
             });
 
@@ -159,11 +117,9 @@ async function search(req, res) {
 
                 success: false,
 
-                error:
-                    error.message,
+                error: error.message,
 
-                code:
-                    error.code
+                code: error.code
 
             });
 
@@ -183,7 +139,5 @@ async function search(req, res) {
 }
 
 module.exports = {
-
     search
-
 };
