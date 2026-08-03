@@ -32,10 +32,7 @@ const sql = `
 
     ORDER BY
 
-        CASE
-            WHEN stock_quantity > 0 THEN 0
-            ELSE 1
-        END,
+        
 
         relevance DESC,
 
