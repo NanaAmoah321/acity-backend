@@ -96,7 +96,6 @@ async function generateStructuredContent({
         systemInstruction,
         responseMimeType: "application/json",
         responseSchema,
-        temperature: 0.2,
         maxOutputTokens: 1000
       }
     });
