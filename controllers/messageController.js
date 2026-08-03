@@ -248,7 +248,25 @@ exports.getInbox = async (req, res) => {
         const result = await pool.query(
             `
             SELECT
-                messages.*,
+                messages.id,
+                messages.sender_id,
+                messages.receiver_id,
+
+                COALESCE(
+                    messages.translated_message,
+                    messages.message
+                ) AS message,
+
+                messages.original_message,
+                messages.translated_message,
+                messages.detected_language,
+
+                messages.file_url,
+                messages.file_name,
+                messages.file_type,
+
+                messages.is_read,
+                messages.created_at,
                 users.name AS sender_name
             FROM messages
             JOIN users ON messages.sender_id = users.id
@@ -329,7 +347,36 @@ exports.getConversation = async (req, res) => {
         const result = await pool.query(
             `
             SELECT
-                messages.*,
+
+                messages.id,
+                messages.sender_id,
+                messages.receiver_id,
+
+                CASE
+
+                    WHEN messages.sender_id = $1
+                        THEN COALESCE(
+                            messages.original_message,
+                            messages.message
+                        )
+
+                    ELSE COALESCE(
+                        messages.translated_message,
+                        messages.message
+                    )
+
+                END AS message,
+
+                messages.original_message,
+                messages.translated_message,
+                messages.detected_language,
+
+                messages.file_url,
+                messages.file_name,
+                messages.file_type,
+
+                messages.is_read,
+                messages.created_at,
 
                 sender.name AS sender_name,
                 receiver.name AS receiver_name,
