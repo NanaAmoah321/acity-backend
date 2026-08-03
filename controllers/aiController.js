@@ -32,13 +32,17 @@ async function improveListingDraft(req, res) {
       });
     }
 
-    if (error instanceof AiGatewayError) {
-      return res.status(error.statusCode).json({
+    if (error instanceof ZodError) {
+    const details = error.issues
+        .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
+        .join(" ");
+
+    return res.status(400).json({
         error: {
-          code: error.code,
-          message: error.message
+        code: "VALIDATION_ERROR",
+        message: details
         }
-      });
+    });
     }
 
     console.error("Seller Agent controller failed", {
