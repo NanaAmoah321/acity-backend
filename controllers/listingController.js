@@ -431,61 +431,160 @@ exports.getListingById = async (req, res) => {
 };
 
 exports.getStores = async (req, res) => {
+
     try {
-        const result = await pool.query(`
+
+        const result = await pool.query(
+            `
             SELECT
-                users.id AS user_id,
-                users.name AS store_name,
-                users.store_category,
+
+                stores.user_id,
+
+                stores.store_name,
+
+                stores.profile_image,
+
+                stores.categories,
+
+                stores.opening_time,
+
+                stores.closing_time,
+
                 COUNT(listings.id) AS total_products,
-                ROUND(AVG(reviews.rating), 1) AS average_rating,
-                COUNT(reviews.id) AS total_reviews,
-                (SELECT image_url FROM listings l WHERE l.user_id = users.id ORDER BY created_at DESC LIMIT 1) AS cover_image
-            FROM users
-            JOIN listings ON listings.user_id = users.id
-            LEFT JOIN reviews ON reviews.reviewed_user_id = users.id
-            GROUP BY users.id, users.name, users.store_category
-            ORDER BY users.name
-        `);
+
+                ROUND(AVG(reviews.rating),1) AS average_rating,
+
+                COUNT(DISTINCT reviews.id) AS total_reviews
+
+            FROM stores
+
+            LEFT JOIN listings
+                ON listings.user_id = stores.user_id
+                AND listings.status <> 'archived'
+
+            LEFT JOIN reviews
+                ON reviews.reviewed_user_id = stores.user_id
+
+            GROUP BY
+
+                stores.id,
+                stores.user_id,
+                stores.store_name,
+                stores.profile_image,
+                stores.categories,
+                stores.opening_time,
+                stores.closing_time
+
+            ORDER BY stores.store_name ASC
+            `
+        );
+
         res.json(result.rows);
-    } catch (err) {
+
+    } catch(err){
+
         console.error(err);
-        res.status(500).json({ error: err.message });
+
+        res.status(500).json({
+            error:err.message
+        });
+
     }
+
 };
 
 exports.getStore = async (req, res) => {
+
     const { userId } = req.params;
+
     try {
-        const seller = await pool.query(
+
+        const store = await pool.query(
             `
             SELECT
-                users.id,
-                users.name AS seller_name,
-                (SELECT category FROM listings WHERE user_id = users.id LIMIT 1) AS store_category,
-                ROUND(AVG(reviews.rating), 1) AS average_rating,
-                COUNT(reviews.id) AS total_reviews
-            FROM users
-            LEFT JOIN reviews ON reviews.reviewed_user_id = users.id
-            WHERE users.id = $1
-            GROUP BY users.id
+
+                stores.user_id,
+
+                stores.store_name,
+
+                stores.description,
+
+                stores.profile_image,
+
+                stores.categories,
+
+                stores.opening_time,
+
+                stores.closing_time,
+
+                stores.phone,
+
+                stores.location,
+
+                ROUND(AVG(reviews.rating),1) AS average_rating,
+
+                COUNT(DISTINCT reviews.id) AS total_reviews
+
+            FROM stores
+
+            LEFT JOIN reviews
+                ON reviews.reviewed_user_id = stores.user_id
+
+            WHERE stores.user_id = $1
+
+            GROUP BY
+
+                stores.id,
+                stores.user_id,
+                stores.store_name,
+                stores.description,
+                stores.profile_image,
+                stores.categories,
+                stores.opening_time,
+                stores.closing_time,
+                stores.phone,
+                stores.location
             `,
             [userId]
         );
 
+        if(store.rows.length === 0){
+
+            return res.status(404).json({
+                error:"Store not found."
+            });
+
+        }
+
         const products = await pool.query(
-            "SELECT * FROM listings WHERE user_id = $1 ORDER BY created_at DESC",
+            `
+            SELECT *
+            FROM listings
+            WHERE user_id = $1
+            AND status <> 'archived'
+            ORDER BY created_at DESC
+            `,
             [userId]
         );
 
         res.json({
-            seller: seller.rows[0],
+
+            store: store.rows[0],
+
             products: products.rows
+
         });
-    } catch (err) {
+
+    } catch(err){
+
         console.error(err);
-        res.status(500).json({ error: err.message });
+
+        res.status(500).json({
+            error: err.message
+        });
+
     }
+
 };
 
 exports.createOrder = async (req, res) => {
