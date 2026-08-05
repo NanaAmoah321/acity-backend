@@ -18,6 +18,7 @@ const notificationRoutes = require("./routes/notificationRoutes");
 const followRoutes = require("./routes/followRoutes");
 const emailRoutes = require("./routes/emailRoutes");
 const { globalLimiter } = require("./middleware/rateLimiters");
+const storeRoutes = require("./routes/storeRoutes");
 
 if (!process.env.JWT_SECRET) {
     throw new Error("JWT_SECRET missing");
@@ -145,6 +146,7 @@ app.use((err, req, res, next) => {
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/listings", listingRoutes);
+app.use("/api/stores", storeRoutes);
 app.use("/api/services", serviceRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/admin", adminRoutes);
