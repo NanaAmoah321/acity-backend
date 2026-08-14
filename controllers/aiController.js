@@ -2,6 +2,7 @@ const { ZodError } = require("zod");
 const { improveListing, listingDraftSchema } = require("../ai/sellerAgent");
 const { AiGatewayError } = require("../ai/geminiGateway");
 const { getPricingInsight } = require("../services/pricingService");
+const { improveMessage } = require("../ai/messageComposer");
 
 async function improveListingDraft(req, res) {
   try {
@@ -59,4 +60,88 @@ async function improveListingDraft(req, res) {
   }
 }
 
-module.exports = { improveListingDraft };
+async function improveMessageController(req, res) {
+
+    try {
+
+        const { message } = req.body;
+
+        if (
+            !message ||
+            typeof message !== "string" ||
+            !message.trim()
+        ) {
+
+            return res.status(400).json({
+
+                error: {
+
+                    code: "VALIDATION_ERROR",
+
+                    message: "Message is required."
+
+                }
+
+            });
+
+        }
+
+        const improvedMessage =
+            await improveMessage(message);
+
+        return res.status(200).json({
+
+            data: improvedMessage,
+
+            meta: {
+
+                agent: "message"
+
+            }
+
+        });
+
+    } catch (error) {
+
+        if (error instanceof AiGatewayError) {
+
+            return res.status(error.statusCode).json({
+
+                error: {
+
+                    code: error.code,
+
+                    message: error.message
+
+                }
+
+            });
+
+        }
+
+        console.error("Message Composer failed", {
+
+            name: error?.name,
+
+            message: error?.message
+
+        });
+
+        return res.status(500).json({
+
+            error: {
+
+                code: "INTERNAL_ERROR",
+
+                message:
+                    "Unable to improve this message."
+
+            }
+
+        });
+
+    }
+
+}
+
+module.exports = { improveListingDraft, improveMessageController };
