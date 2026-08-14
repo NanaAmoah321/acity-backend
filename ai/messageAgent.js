@@ -69,15 +69,7 @@ const responseSchema = async () => {
                 type: Type.STRING
             },
 
-            suggestedReplies: {
-
-                type: Type.ARRAY,
-
-                items: {
-                    type: Type.STRING
-                }
-
-            }
+            
 
         }
 
@@ -111,9 +103,7 @@ const outputSchema = z.object({
     toxicityReason:
         z.string(),
 
-    suggestedReplies:
-        z.array(z.string())
-            .max(3)
+    
 
 });
 
@@ -146,7 +136,7 @@ Tasks:
 
 5. Detect abusive or toxic language.
 
-6. Generate up to 3 short suggested replies.
+
 
 Rules:
 
@@ -154,7 +144,7 @@ Rules:
 
 - Keep translations natural.
 
-- Suggested replies must be short.
+
 
 - If the message is already English,
 translatedMessage should equal the original.
@@ -174,8 +164,83 @@ Return JSON only.
 
 }
 
+async function generateSmartReplies(message) {
+
+    const Type =
+        await getGeminiType();
+
+    const response =
+        await generateStructuredContent({
+
+            systemInstruction: `
+
+You are Acity Connect's Smart Reply AI.
+
+A student has just RECEIVED this message.
+
+Generate exactly THREE short replies.
+
+Rules:
+
+- Natural.
+- Friendly.
+- Under 12 words.
+- No emojis.
+- No quotation marks.
+- Do not repeat the original message.
+- JSON only.
+
+`,
+
+            prompt: `
+
+Incoming Message:
+
+"${message}"
+
+`,
+
+            responseSchema: {
+
+                type: Type.OBJECT,
+
+                required: [
+                    "replies"
+                ],
+
+                properties: {
+
+                    replies: {
+
+                        type: Type.ARRAY,
+
+                        items: {
+
+                            type: Type.STRING
+
+                        }
+
+                    }
+
+                }
+
+            }
+
+        });
+
+    return z.object({
+
+        replies:
+            z.array(z.string())
+                .length(3)
+
+    }).parse(response);
+
+}
+
 module.exports = {
 
-    analyzeMessage
+    analyzeMessage,
+    generateSmartReplies
 
 };

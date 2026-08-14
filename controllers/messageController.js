@@ -8,7 +8,8 @@ const { messageSchema } =
 require("../schemas/messageSchema");
 
 const {
-    analyzeMessage
+    analyzeMessage,
+    generateSmartReplies
 } = require("../ai/messageAgent");
 
 exports.sendMessage = async (req, res) => {
@@ -38,9 +39,9 @@ exports.sendMessage = async (req, res) => {
 
         isToxic: false,
 
-        toxicityReason: "",
+        toxicityReason: ""
 
-        suggestedReplies: []
+        
 
     };
 
@@ -184,17 +185,9 @@ exports.sendMessage = async (req, res) => {
 
             ...result.rows[0],
 
-            sender_name: senderName,
+            sender_name: senderName
 
-            ai: {
-
-                detectedLanguage:
-                    aiResult.detectedLanguage,
-
-                suggestedReplies:
-                    aiResult.suggestedReplies
-
-            }
+            
 
         };
 
@@ -204,21 +197,7 @@ exports.sendMessage = async (req, res) => {
         }
 
         // 4. Return success response to user IMMEDIATELY
-        res.json({
-
-            ...result.rows[0],
-
-            ai: {
-
-                detectedLanguage:
-                    aiResult.detectedLanguage,
-
-                suggestedReplies:
-                    aiResult.suggestedReplies
-
-            }
-
-        });
+        res.json(result.rows[0]);
 
         // 5. Background tasks (wrapped in safe try/catch so failure won't crash Express response)
         try {
@@ -432,6 +411,61 @@ exports.getConversation = async (req, res) => {
         console.error("getConversation Error:", err);
         return res.status(500).json({ error: "Failed to retrieve conversation" });
     }
+};
+
+exports.getSmartReplies = async (req, res) => {
+
+    try {
+
+        const message =
+            String(req.body.message || "").trim();
+
+        if (!message) {
+
+            return res.status(400).json({
+
+                error: {
+
+                    message: "Message is required."
+
+                }
+
+            });
+
+        }
+
+        const result =
+            await generateSmartReplies(message);
+
+        return res.json({
+
+            replies: result.replies
+
+        });
+
+    } catch (error) {
+
+        console.error(
+
+            "Smart Replies failed:",
+
+            error.message
+
+        );
+
+        return res.status(500).json({
+
+            error: {
+
+                message:
+                    "Unable to generate Smart Replies."
+
+            }
+
+        });
+
+    }
+
 };
 
 exports.getUnreadCount = async (req, res) => {

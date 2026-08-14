@@ -31,6 +31,13 @@ router.get(
     messageController.getConversations
 );
 
+router.post(
+    "/smart-replies",
+    authMiddleware,
+    resourceLimiter,
+    messageController.getSmartReplies
+);
+
 router.get(
     "/conversation/:userId",
     authMiddleware,
