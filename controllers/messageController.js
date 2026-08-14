@@ -8,9 +8,13 @@ const { messageSchema } =
 require("../schemas/messageSchema");
 
 const {
-    analyzeMessage,
-    generateSmartReplies
+    analyzeMessage
+    
 } = require("../ai/messageAgent");
+
+const {
+    generateSmartReplies
+} = require("../ai/smartReplyAgent");
 
 exports.sendMessage = async (req, res) => {
     const {
@@ -413,54 +417,36 @@ exports.getConversation = async (req, res) => {
     }
 };
 
-exports.getSmartReplies = async (req, res) => {
+exports.getSmartReplies = async (req,res)=>{
 
-    try {
+    try{
 
-        const message =
-            String(req.body.message || "").trim();
+        const { message } = req.body;
 
-        if (!message) {
+        if(!message?.trim()){
 
             return res.status(400).json({
 
-                error: {
-
-                    message: "Message is required."
-
-                }
+                error:"Message required"
 
             });
 
         }
 
         const result =
-            await generateSmartReplies(message);
+        await generateSmartReplies(message);
 
-        return res.json({
+        return res.json(result);
 
-            replies: result.replies
+    }
 
-        });
-
-    } catch (error) {
-
-        console.error(
-
-            "Smart Replies failed:",
-
-            error.message
-
-        );
+    catch(error){
+ 
+        console.error(error);
 
         return res.status(500).json({
 
-            error: {
-
-                message:
-                    "Unable to generate Smart Replies."
-
-            }
+            error:"Unable to generate replies"
 
         });
 
