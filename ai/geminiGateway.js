@@ -46,20 +46,65 @@ function logUpstreamError(error) {
 }
 
 function toSafeGatewayError(error) {
-  const upstreamStatus = error?.status || error?.statusCode;
+
+  const upstreamStatus =
+    error?.status ||
+    error?.statusCode;
 
   if (upstreamStatus === 429) {
+
     return new AiGatewayError(
-    "Acity AI has reached its usage limit. Please try again in about a minute.",{
-      statusCode: 503,
-      code: "AI_RATE_LIMITED"
-    });
+
+      "Acity AI is temporarily busy. Please try again in about a minute.",
+
+      {
+
+        statusCode: 503,
+
+        code: "AI_RATE_LIMITED"
+
+      }
+
+    );
+
   }
 
-  return new AiGatewayError("AI service request failed.", {
-    statusCode: 502,
-    code: "AI_UPSTREAM_ERROR"
-  });
+  if (upstreamStatus === 503) {
+
+    return new AiGatewayError(
+
+      "Acity AI is temporarily unavailable. Please try again shortly.",
+
+      {
+
+        statusCode: 503,
+
+        code: "AI_TEMPORARILY_UNAVAILABLE"
+
+      }
+
+    );
+
+  }
+
+  return new AiGatewayError(
+
+    "AI service request failed.",
+
+    {
+
+      statusCode: 502,
+
+      code: "AI_UPSTREAM_ERROR"
+
+    }
+
+  );
+
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 async function generateStructuredContent({
@@ -83,40 +128,128 @@ async function generateStructuredContent({
   }
 
   try {
-    const client = await getClient();
+    const retries = 3;
+    let delay = 800;
 
-    const response = await client.models.generateContent({
-      model,
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: prompt }]
-        }
-      ],
-      config: {
-        
-        systemInstruction,
-        responseMimeType: "application/json",
-        responseJsonSchema: responseSchema,
-        maxOutputTokens: 1000
-        }
-    });
+    for (let attempt = 1; attempt <= retries; attempt++) {
 
-    if (!response.text) {
-      throw new AiGatewayError("AI service returned an empty response.", {
-        code: "AI_EMPTY_RESPONSE"
-      });
+        try {
+
+            const client = await getClient();
+
+            const response =
+            await client.models.generateContent({
+
+                model,
+
+                contents: [
+
+                    {
+                        role: "user",
+                        parts: [{ text: prompt }]
+                    }
+
+                ],
+
+                config: {
+
+                    systemInstruction,
+
+                    responseMimeType: "application/json",
+
+                    responseJsonSchema: responseSchema,
+
+                    maxOutputTokens: 300
+
+                }
+
+            });
+
+            if (!response.text) {
+
+                throw new AiGatewayError(
+
+                    "AI service returned an empty response.",
+
+                    {
+
+                        code: "AI_EMPTY_RESPONSE"
+
+                    }
+
+                );
+
+            }
+
+            try {
+
+                return JSON.parse(response.text);
+
+            } catch {
+
+                throw new AiGatewayError(
+
+                    "AI service returned invalid JSON.",
+
+                    {
+
+                        code: "AI_INVALID_JSON"
+
+                    }
+
+                );
+
+            }
+
+        } catch (error) {
+
+            if (error instanceof AiGatewayError) {
+                throw error;
+            }
+
+            const status =
+                error?.status ||
+                error?.statusCode;
+
+            const retryable =
+
+                status === 429 ||
+
+                status === 500 ||
+
+                status === 502 ||
+
+                status === 503 ||
+
+                status === 504;
+
+            if (
+
+                !retryable ||
+
+                attempt === retries
+
+            ) {
+
+                logUpstreamError(error);
+
+                throw toSafeGatewayError(error);
+
+            }
+
+            console.warn(
+
+                `Gemini retry ${attempt}/${retries} in ${delay}ms...`
+
+            );
+
+            await sleep(delay);
+
+            delay *= 2;
+
+        }
+
     }
-
-    try {
-        return JSON.parse(response.text);
-        } catch {
-        
-
-        throw new AiGatewayError("AI service returned invalid JSON.", {
-            code: "AI_INVALID_JSON"
-        });
-        }
   } catch (error) {
     if (error instanceof AiGatewayError) {
       throw error;
