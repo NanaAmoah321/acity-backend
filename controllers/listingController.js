@@ -166,13 +166,21 @@ exports.getListings = async (req, res) => {
             SELECT
                 listings.*,
                 users.name AS seller_name,
+                stores.store_name AS store_name,
                 ROUND(AVG(reviews.rating), 1) AS average_rating,
                 COUNT(reviews.id) AS total_reviews
             FROM listings
-            JOIN users ON listings.user_id = users.id
-            LEFT JOIN reviews ON reviews.reviewed_user_id = users.id
+            JOIN users
+                ON listings.user_id = users.id
+            LEFT JOIN stores
+                ON stores.user_id = listings.user_id
+            LEFT JOIN reviews
+                ON reviews.reviewed_user_id = users.id
             WHERE listings.status <> 'archived'
-            GROUP BY listings.id, users.name
+            GROUP BY
+                listings.id,
+                users.name,
+                stores.store_name
             ORDER BY listings.created_at DESC
         `);
         res.json(result.rows);

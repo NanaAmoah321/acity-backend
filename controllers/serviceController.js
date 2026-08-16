@@ -227,34 +227,23 @@ exports.getServices = async (req, res) => {
 
         const result = await pool.query(`
             SELECT
-
                 services.*,
-
-                users.name
-                AS provider_name,
-
-                ROUND(
-                    AVG(reviews.rating),
-                    1
-                ) AS average_rating,
-
-                COUNT(reviews.id)
-                AS total_reviews
-
+                users.name AS provider_name,
+                stores.store_name AS store_name,
+                ROUND(AVG(reviews.rating), 1) AS average_rating,
+                COUNT(reviews.id) AS total_reviews
             FROM services
-
             JOIN users
-            ON users.id = services.user_id
-
+                ON users.id = services.user_id
+            LEFT JOIN stores
+                ON stores.user_id = services.user_id
             LEFT JOIN reviews
-            ON reviews.reviewed_user_id = users.id
-
+                ON reviews.reviewed_user_id = users.id
             GROUP BY
                 services.id,
-                users.name
-
-            ORDER BY
-                services.created_at DESC
+                users.name,
+                stores.store_name
+            ORDER BY services.created_at DESC
         `);
 
         res.json(result.rows);
