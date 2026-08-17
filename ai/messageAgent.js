@@ -29,9 +29,9 @@ const responseSchema = async () => {
 
             "isToxic",
 
-            "toxicityReason",
+            "toxicityReason"
 
-            "suggestedReplies"
+            
 
         ],
 
@@ -164,83 +164,11 @@ Return JSON only.
 
 }
 
-async function generateSmartReplies(message) {
 
-    const Type =
-        await getGeminiType();
-
-    const response =
-        await generateStructuredContent({
-
-            systemInstruction: `
-
-You are Acity Connect's Smart Reply AI.
-
-A student has just RECEIVED this message.
-
-Generate exactly THREE short replies.
-
-Rules:
-
-- Natural.
-- Friendly.
-- Under 12 words.
-- No emojis.
-- No quotation marks.
-- Do not repeat the original message.
-- JSON only.
-
-`,
-
-            prompt: `
-
-Incoming Message:
-
-"${message}"
-
-`,
-
-            responseSchema: {
-
-                type: Type.OBJECT,
-
-                required: [
-                    "replies"
-                ],
-
-                properties: {
-
-                    replies: {
-
-                        type: Type.ARRAY,
-
-                        items: {
-
-                            type: Type.STRING
-
-                        }
-
-                    }
-
-                }
-
-            }
-
-        });
-
-    return z.object({
-
-        replies:
-            z.array(z.string())
-                .length(3)
-
-    }).parse(response);
-
-}
 
 module.exports = {
 
-    analyzeMessage,
-    generateSmartReplies
+    analyzeMessage
+    
 
 };
