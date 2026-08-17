@@ -107,102 +107,113 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function cleanJsonText(value) {
+    return String(value || "")
+        .trim()
+        .replace(/^```json\s*/i, "")
+        .replace(/^```\s*/i, "")
+        .replace(/\s*```$/i, "")
+        .trim();
+}
+
 async function generateStructuredContent({
-  systemInstruction,
-  prompt,
-  responseSchema,
-  model = process.env.GEMINI_MODEL || "gemini-2.5-flash"
+    systemInstruction,
+    prompt,
+    responseSchema,
+    model = process.env.GEMINI_MODEL || "gemini-2.5-flash"
 }) {
-  if (typeof systemInstruction !== "string" || !systemInstruction.trim()) {
-    throw new AiGatewayError("AI system instructions are invalid.", {
-      statusCode: 500,
-      code: "AI_CONFIGURATION_ERROR"
-    });
-  }
+    if (
+        typeof systemInstruction !== "string" ||
+        !systemInstruction.trim()
+    ) {
+        throw new AiGatewayError(
+            "AI system instructions are invalid.",
+            {
+                statusCode: 500,
+                code: "AI_CONFIGURATION_ERROR"
+            }
+        );
+    }
 
-  if (typeof prompt !== "string" || !prompt.trim()) {
-    throw new AiGatewayError("AI prompt is invalid.", {
-      statusCode: 500,
-      code: "AI_CONFIGURATION_ERROR"
-    });
-  }
+    if (
+        typeof prompt !== "string" ||
+        !prompt.trim()
+    ) {
+        throw new AiGatewayError(
+            "AI prompt is invalid.",
+            {
+                statusCode: 500,
+                code: "AI_CONFIGURATION_ERROR"
+            }
+        );
+    }
 
-  try {
     const retries = 3;
     let delay = 800;
 
     for (let attempt = 1; attempt <= retries; attempt++) {
-
         try {
-
             const client = await getClient();
 
             const response =
-            await client.models.generateContent({
+                await client.models.generateContent({
+                    model,
 
-                model,
+                    contents: [
+                        {
+                            role: "user",
+                            parts: [
+                                {
+                                    text: prompt
+                                }
+                            ]
+                        }
+                    ],
 
-                contents: [
-
-                    {
-                        role: "user",
-                        parts: [{ text: prompt }]
+                    config: {
+                        systemInstruction,
+                        responseMimeType: "application/json",
+                        responseJsonSchema: responseSchema,
+                        maxOutputTokens: 300
                     }
+                });
 
-                ],
+            const rawText = response?.text;
 
-                config: {
-
-                    systemInstruction,
-
-                    responseMimeType: "application/json",
-
-                    responseJsonSchema: responseSchema,
-
-                    maxOutputTokens: 300
-
-                }
-
-            });
-
-            if (!response.text) {
-
+            if (
+                typeof rawText !== "string" ||
+                !rawText.trim()
+            ) {
                 throw new AiGatewayError(
-
                     "AI service returned an empty response.",
-
                     {
-
+                        statusCode: 502,
                         code: "AI_EMPTY_RESPONSE"
-
                     }
-
                 );
-
             }
 
+            const cleanedText =
+                cleanJsonText(rawText);
+
             try {
-
-                return JSON.parse(response.text);
-
-            } catch {
-
-                throw new AiGatewayError(
-
-                    "AI service returned invalid JSON.",
-
-                    {
-
-                        code: "AI_INVALID_JSON"
-
-                    }
-
+                return JSON.parse(cleanedText);
+            } catch (parseError) {
+                console.error(
+                    "Gemini raw response:",
+                    rawText
                 );
 
+                throw new AiGatewayError(
+                    "AI service returned invalid JSON.",
+                    {
+                        statusCode: 502,
+                        code: "AI_INVALID_JSON"
+                    }
+                );
             }
 
         } catch (error) {
-
             if (error instanceof AiGatewayError) {
                 throw error;
             }
@@ -212,52 +223,28 @@ async function generateStructuredContent({
                 error?.statusCode;
 
             const retryable =
-
                 status === 429 ||
-
                 status === 500 ||
-
                 status === 502 ||
-
                 status === 503 ||
-
                 status === 504;
 
             if (
-
                 !retryable ||
-
                 attempt === retries
-
             ) {
-
                 logUpstreamError(error);
-
                 throw toSafeGatewayError(error);
-
             }
 
             console.warn(
-
                 `Gemini retry ${attempt}/${retries} in ${delay}ms...`
-
             );
 
             await sleep(delay);
-
             delay *= 2;
-
         }
-
     }
-  } catch (error) {
-    if (error instanceof AiGatewayError) {
-      throw error;
-    }
-
-    logUpstreamError(error);
-    throw toSafeGatewayError(error);
-  }
 }
 
 async function getGeminiType() {
