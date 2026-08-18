@@ -597,57 +597,148 @@ exports.getStore = async (req, res) => {
 
 exports.createOrder = async (req, res) => {
     const buyer_id = req.user.id;
-    // Extract variables correctly from the request body
-    const { listing_id, quantity, delivery_method, hostel, room_number, meeting_location } = req.body;
 
-    const validationError = validateOrder({ quantity, delivery_method, room_number });
+    const {
+        listing_id,
+        quantity,
+        delivery_method,
+        hostel,
+        room_number,
+        meeting_location
+    } = req.body;
+
+    const validationError = validateOrder({
+        quantity,
+        delivery_method,
+        room_number
+    });
+
     if (validationError) {
-        return res.status(400).json({ error: validationError });
+        return res.status(400).json({
+            error: validationError
+        });
     }
 
     try {
         const listingResult = await pool.query(
-            "SELECT user_id, stock_quantity, title FROM listings WHERE id = $1",
+            `
+            SELECT user_id, stock_quantity, title
+            FROM listings
+            WHERE id = $1
+            `,
             [listing_id]
         );
 
         if (listingResult.rows.length === 0) {
-            return res.status(404).json({ error: "Listing not found." });
+            return res.status(404).json({
+                error: "Listing not found."
+            });
         }
 
         const listing = listingResult.rows[0];
         const seller_id = listing.user_id;
 
-        if (seller_id === buyer_id) {
-            return res.status(400).json({ error: "You cannot buy your own listing." });
+        if (Number(seller_id) === Number(buyer_id)) {
+            return res.status(400).json({
+                error: "You cannot buy your own listing."
+            });
         }
 
-        if (quantity > listing.stock_quantity) {
-            return res.status(400).json({ message: `Only ${listing.stock_quantity} item(s) left.` });
+        if (Number(quantity) > Number(listing.stock_quantity)) {
+            return res.status(400).json({
+                message: `Only ${listing.stock_quantity} item(s) left.`
+            });
         }
 
-        // Use an atomic update to safely deduct stock and prevent race conditions
         const stockUpdate = await pool.query(
-            "UPDATE listings SET stock_quantity = stock_quantity - $1 WHERE id = $2 AND stock_quantity >= $1 RETURNING *",
+            `
+            UPDATE listings
+            SET stock_quantity = stock_quantity - $1
+            WHERE id = $2
+            AND stock_quantity >= $1
+            RETURNING *
+            `,
             [quantity, listing_id]
         );
 
         if (stockUpdate.rows.length === 0) {
-            return res.status(400).json({ error: "Insufficient stock due to a simultaneous purchase." });
+            return res.status(400).json({
+                error: "Insufficient stock due to a simultaneous purchase."
+            });
         }
 
         const order = await pool.query(
-            `INSERT INTO orders (buyer_id, seller_id, listing_id, quantity, delivery_method, hostel, room_number, meeting_location)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-            [buyer_id, seller_id, listing_id, quantity, delivery_method, hostel, room_number, meeting_location]
+            `
+            INSERT INTO orders
+            (
+                buyer_id,
+                seller_id,
+                listing_id,
+                quantity,
+                delivery_method,
+                hostel,
+                room_number,
+                meeting_location
+            )
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+            RETURNING *
+            `,
+            [
+                buyer_id,
+                seller_id,
+                listing_id,
+                quantity,
+                delivery_method,
+                hostel,
+                room_number,
+                meeting_location
+            ]
         );
 
-        // Notification and email logic remains here...
+        const createdOrder = order.rows[0];
 
-        res.json({ message: "Order created", order: order.rows[0] });
+        res.json({
+            message: "Order created",
+            order: createdOrder
+        });
+
+        // Create notifications after the order succeeds.
+        // Notification failure must not cancel a successful order.
+        Promise.allSettled([
+            createNotification(
+                seller_id,
+                "New Order",
+                `A buyer ordered "${listing.title}".`,
+                "order",
+                createdOrder.id,
+                "profile.html"
+            ),
+
+            createNotification(
+                buyer_id,
+                "Order Placed",
+                `Your order for "${listing.title}" was placed successfully.`,
+                "order",
+                createdOrder.id,
+                "profile.html"
+            )
+        ]).then(results => {
+            results.forEach(result => {
+                if (result.status === "rejected") {
+                    console.error(
+                        "Order notification error:",
+                        result.reason
+                    );
+                }
+            });
+        });
+
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: err.message });
+        console.error("Create Order Error:", err);
+
+        res.status(500).json({
+            error: err.message
+        });
     }
 };
 
@@ -684,34 +775,102 @@ exports.updateOrderStatus = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
 
-    const allowedStatuses = ["pending", "accepted", "completed", "cancelled"];
+    const allowedStatuses = [
+        "pending",
+        "accepted",
+        "completed",
+        "cancelled"
+    ];
+
     if (!allowedStatuses.includes(status)) {
-        return res.status(400).json({ error: "Invalid order status." });
+        return res.status(400).json({
+            error: "Invalid order status."
+        });
     }
 
     try {
-        const order = await pool.query("SELECT * FROM orders WHERE id = $1", [id]);
-        if (order.rows.length === 0) {
-            return res.status(404).json({ error: "Order not found" });
+        const orderResult = await pool.query(
+            `
+            SELECT orders.*, listings.title
+            FROM orders
+            JOIN listings
+                ON listings.id = orders.listing_id
+            WHERE orders.id = $1
+            `,
+            [id]
+        );
+
+        if (orderResult.rows.length === 0) {
+            return res.status(404).json({
+                error: "Order not found."
+            });
         }
 
-        if (order.rows[0].seller_id !== req.user.id) {
-            return res.status(403).json({ error: "Unauthorized" });
+        const existingOrder = orderResult.rows[0];
+
+        if (Number(existingOrder.seller_id) !== Number(req.user.id)) {
+            return res.status(403).json({
+                error: "Unauthorized."
+            });
         }
 
         const result = await pool.query(
-            "UPDATE orders SET status = $1 WHERE id = $2 RETURNING *",
+            `
+            UPDATE orders
+            SET status = $1
+            WHERE id = $2
+            RETURNING *
+            `,
             [status, id]
         );
 
         if (status === "accepted") {
-            await pool.query("UPDATE listings SET status = 'sold' WHERE id = $1", [order.rows[0].listing_id]);
+            await pool.query(
+                `
+                UPDATE listings
+                SET status = 'sold'
+                WHERE id = $1
+                `,
+                [existingOrder.listing_id]
+            );
         }
 
-        res.json({ message: "Order updated", order: result.rows[0] });
+        const statusMessages = {
+            accepted: `Your order for "${existingOrder.title}" was accepted.`,
+            completed: `Your order for "${existingOrder.title}" was completed.`,
+            cancelled: `Your order for "${existingOrder.title}" was cancelled.`
+        };
+
+        if (statusMessages[status]) {
+            await createNotification(
+                existingOrder.buyer_id,
+                status === "accepted"
+                    ? "Order Accepted"
+                    : status === "completed"
+                        ? "Order Completed"
+                        : "Order Cancelled",
+                statusMessages[status],
+                status === "accepted"
+                    ? "accepted"
+                    : status === "cancelled"
+                        ? "rejected"
+                        : "order",
+                existingOrder.id,
+                "profile.html"
+            );
+        }
+
+        res.json({
+            message: "Order updated",
+            order: result.rows[0]
+        });
+
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: err.message });
+        console.error("Update Order Status Error:", err);
+
+        res.status(500).json({
+            error: err.message
+        });
     }
 };
 
