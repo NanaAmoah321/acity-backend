@@ -19,6 +19,12 @@ router.put(
     resourceLimiter,
     authController.updateProfile
 );
+router.delete(
+    "/profile",
+    authMiddleware,
+    resourceLimiter,
+    authController.deleteProfile
+);
 router.post(
     "/forgot-password",
     authLimiter,

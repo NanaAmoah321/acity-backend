@@ -539,32 +539,66 @@ exports.resetPassword = async (req, res) => {
 };
 
 exports.getProfile = async (req, res) => {
-  try {
-    const user = await pool.query(
-      `
-      SELECT
-      id,
-      name,
-      email,
-      department,
-      level,
-      bio,
-      profile_picture,
-      role,
-      verified
-      FROM users
-      WHERE id = $1
-      `,
-      [req.user.id]
-    );
+    try {
+        const user = await pool.query(
+            `
+            SELECT
+                users.id,
+                users.name,
+                users.email,
+                users.department,
+                users.level,
+                users.bio,
+                users.profile_picture,
+                users.role,
+                users.verified,
 
-    res.json(user.rows[0]);
+                (
+                    SELECT COUNT(*)
+                    FROM listings
+                    WHERE listings.user_id = users.id
+                    AND listings.status <> 'archived'
+                ) AS listing_count,
 
-  } catch (err) {
-    res.status(500).json({
-      error: err.message
-    });
-  }
+                (
+                    SELECT COALESCE(ROUND(AVG(rating), 1), 0)
+                    FROM reviews
+                    WHERE reviews.reviewed_user_id = users.id
+                ) AS average_rating,
+
+                (
+                    SELECT COUNT(*)
+                    FROM orders
+                    WHERE orders.seller_id = users.id
+                ) AS order_count,
+
+                (
+                    SELECT COUNT(*)
+                    FROM store_followers
+                    WHERE store_followers.following_user_id = users.id
+                ) AS follower_count
+
+            FROM users
+            WHERE users.id = $1
+            `,
+            [req.user.id]
+        );
+
+        if (user.rows.length === 0) {
+            return res.status(404).json({
+                error: "Profile not found."
+            });
+        }
+
+        return res.json(user.rows[0]);
+
+    } catch (error) {
+        console.error("GET PROFILE ERROR:", error);
+
+        return res.status(500).json({
+            error: "Unable to load profile."
+        });
+    }
 };
 
 exports.updateProfile = async (req, res) => {
@@ -625,4 +659,139 @@ exports.updateProfile = async (req, res) => {
 
     }
 
+};
+
+exports.deleteProfile = async (req, res) => {
+    const client = await pool.connect();
+    const userId = req.user.id;
+
+    try {
+        await client.query("BEGIN");
+
+        /*
+         * Delete dependent records first so foreign-key constraints
+         * do not block deletion of the user.
+         */
+
+        await client.query(
+            `
+            DELETE FROM service_requests
+            WHERE requester_id = $1
+               OR provider_id = $1
+            `,
+            [userId]
+        );
+
+        await client.query(
+            `
+            DELETE FROM messages
+            WHERE sender_id = $1
+               OR receiver_id = $1
+            `,
+            [userId]
+        );
+
+        await client.query(
+            `
+            DELETE FROM reviews
+            WHERE reviewer_id = $1
+               OR reviewed_user_id = $1
+            `,
+            [userId]
+        );
+
+        await client.query(
+            `
+            DELETE FROM store_followers
+            WHERE follower_id = $1
+               OR following_user_id = $1
+            `,
+            [userId]
+        );
+
+        await client.query(
+            `
+            DELETE FROM interests
+            WHERE user_id = $1
+            `,
+            [userId]
+        );
+
+        await client.query(
+            `
+            DELETE FROM notifications
+            WHERE user_id = $1
+            `,
+            [userId]
+        );
+
+        await client.query(
+            `
+            DELETE FROM orders
+            WHERE buyer_id = $1
+               OR seller_id = $1
+            `,
+            [userId]
+        );
+
+        await client.query(
+            `
+            DELETE FROM listings
+            WHERE user_id = $1
+            `,
+            [userId]
+        );
+
+        await client.query(
+            `
+            DELETE FROM services
+            WHERE user_id = $1
+            `,
+            [userId]
+        );
+
+        await client.query(
+            `
+            DELETE FROM stores
+            WHERE user_id = $1
+            `,
+            [userId]
+        );
+
+        const deletedUser = await client.query(
+            `
+            DELETE FROM users
+            WHERE id = $1
+            RETURNING id
+            `,
+            [userId]
+        );
+
+        if (deletedUser.rowCount === 0) {
+            await client.query("ROLLBACK");
+
+            return res.status(404).json({
+                error: "User account was not found."
+            });
+        }
+
+        await client.query("COMMIT");
+
+        return res.json({
+            success: true,
+            message: "Your account has been permanently deleted."
+        });
+
+    } catch (error) {
+        await client.query("ROLLBACK");
+
+        console.error("DELETE PROFILE ERROR:", error);
+
+        return res.status(500).json({
+            error: "Unable to delete your account right now."
+        });
+
+    } finally {
+        client.release();
+    }
 };
