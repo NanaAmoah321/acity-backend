@@ -58,7 +58,10 @@ exports.getAnalytics = async (req, res) => {
         const buyerMetrics = await client.query(
             `
             SELECT
-                COUNT(DISTINCT orders.id)::int AS orders,
+                COUNT(*) FILTER (
+                    WHERE orders.status <> 'cancelled'
+                )::int AS orders,
+
                 COALESCE(
                     SUM(listings.price * orders.quantity)
                     FILTER (
@@ -66,6 +69,7 @@ exports.getAnalytics = async (req, res) => {
                     ),
                     0
                 )::numeric(12,2) AS spending,
+
                 COALESCE(
                     AVG(listings.price * orders.quantity)
                     FILTER (
@@ -73,9 +77,11 @@ exports.getAnalytics = async (req, res) => {
                     ),
                     0
                 )::numeric(12,2) AS average_purchase
+
             FROM orders
             JOIN listings
                 ON listings.id = orders.listing_id
+
             WHERE orders.buyer_id = $1
             AND orders.created_at >= CURRENT_DATE - ($3::int - 1)
             `,
@@ -230,19 +236,29 @@ exports.getAnalytics = async (req, res) => {
             `
             SELECT
                 COALESCE(listings.category, 'Other') AS category,
+
                 COALESCE(
                     SUM(listings.price * orders.quantity),
                     0
                 )::numeric(12,2) AS revenue
+
             FROM orders
+
             JOIN listings
                 ON listings.id = orders.listing_id
+
             WHERE orders.seller_id = $1
             AND orders.status = ANY($2::text[])
+            AND orders.created_at >= CURRENT_DATE - ($3::int - 1)
+
             GROUP BY listings.category
             ORDER BY revenue DESC
             `,
-            [userId, COMPLETED_STATUSES]
+            [
+                userId,
+                COMPLETED_STATUSES,
+                range
+            ]
         );
 
         const buyerCategories = await client.query(
