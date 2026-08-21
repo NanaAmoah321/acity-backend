@@ -54,12 +54,32 @@ const STATUS_TRANSITIONS = {
 };
 
 function normalizeOrderStatus(status) {
-    return STATUS_ALIASES[status] || status;
+    const aliases = {
+        pending: "placed",
+        accepted: "preparing",
+        rejected: "cancelled"
+    };
+
+    return aliases[
+        String(status || "").toLowerCase()
+    ] || String(status || "").toLowerCase();
 }
 
-function canUpdateOrderStatus(currentStatus, requestedStatus) {
-    const current = String(currentStatus || "placed").toLowerCase();
-    const requested = String(requestedStatus || "").toLowerCase();
+function canUpdateOrderStatus(
+    currentStatus,
+    requestedStatus
+) {
+    const current =
+        normalizeOrderStatus(
+            String(currentStatus || "")
+                .toLowerCase()
+        );
+
+    const requested =
+        normalizeOrderStatus(
+            String(requestedStatus || "")
+                .toLowerCase()
+        );
 
     const allowedStatuses =
         STATUS_TRANSITIONS[current] || [];
