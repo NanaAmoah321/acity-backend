@@ -9,6 +9,90 @@ const {
     /*newListingTemplate*/
 } = require("../utils/emailTemplates");
 
+const ORDER_STATUS = {
+    PLACED: "placed",
+    PREPARING: "preparing",
+    PACKAGED: "packaged",
+    READY: "ready",
+    OUT_FOR_DELIVERY: "out_for_delivery",
+    COMPLETED: "completed",
+    CANCELLED: "cancelled"
+};
+
+const STATUS_ALIASES = {
+    pending: "placed",
+    accepted: "preparing",
+    rejected: "cancelled"
+};
+
+const VALID_ORDER_STATUSES = new Set([
+    "placed",
+    "preparing",
+    "packaged",
+    "ready",
+    "out_for_delivery",
+    "completed",
+    "cancelled",
+    "pending",
+    "accepted",
+    "rejected"
+]);
+
+const STATUS_TRANSITIONS = {
+    placed: ["preparing", "cancelled"],
+    preparing: ["packaged", "cancelled"],
+    packaged: ["ready", "cancelled"],
+    ready: ["out_for_delivery", "completed"],
+    out_for_delivery: ["completed"],
+    completed: [],
+    cancelled: [],
+
+    // Compatibility with existing records
+    pending: ["accepted", "cancelled"],
+    accepted: ["completed", "cancelled"],
+    rejected: []
+};
+
+function normalizeOrderStatus(status) {
+    return STATUS_ALIASES[status] || status;
+}
+
+function canUpdateOrderStatus(currentStatus, requestedStatus) {
+    const current = String(currentStatus || "placed").toLowerCase();
+    const requested = String(requestedStatus || "").toLowerCase();
+
+    const allowedStatuses =
+        STATUS_TRANSITIONS[current] || [];
+
+    return allowedStatuses.includes(requested);
+}
+
+async function addOrderStatusHistory(
+    orderId,
+    status,
+    changedBy,
+    note = null
+) {
+    await pool.query(
+        `
+        INSERT INTO order_status_history
+        (
+            order_id,
+            status,
+            changed_by,
+            note
+        )
+        VALUES ($1, $2, $3, $4)
+        `,
+        [
+            orderId,
+            status,
+            changedBy,
+            note
+        ]
+    );
+}
+
 exports.createListing = async (req, res) => {
     const { title, description, category, price, stock_quantity } = req.body;
 
@@ -622,7 +706,12 @@ exports.createOrder = async (req, res) => {
     try {
         const listingResult = await pool.query(
             `
-            SELECT user_id, stock_quantity, title
+            SELECT
+                id,
+                user_id,
+                stock_quantity,
+                title,
+                price
             FROM listings
             WHERE id = $1
             `,
@@ -644,9 +733,24 @@ exports.createOrder = async (req, res) => {
             });
         }
 
-        if (Number(quantity) > Number(listing.stock_quantity)) {
+        const requestedQuantity = Number(quantity);
+
+        if (
+            !Number.isInteger(requestedQuantity) ||
+            requestedQuantity < 1
+        ) {
             return res.status(400).json({
-                message: `Only ${listing.stock_quantity} item(s) left.`
+                error: "Quantity must be at least 1."
+            });
+        }
+
+        if (
+            requestedQuantity >
+            Number(listing.stock_quantity)
+        ) {
+            return res.status(400).json({
+                error:
+                    `Only ${listing.stock_quantity} item(s) left.`
             });
         }
 
@@ -656,18 +760,26 @@ exports.createOrder = async (req, res) => {
             SET stock_quantity = stock_quantity - $1
             WHERE id = $2
             AND stock_quantity >= $1
-            RETURNING *
+            RETURNING id, stock_quantity
             `,
-            [quantity, listing_id]
+            [
+                requestedQuantity,
+                listing_id
+            ]
         );
 
         if (stockUpdate.rows.length === 0) {
-            return res.status(400).json({
-                error: "Insufficient stock due to a simultaneous purchase."
+            return res.status(409).json({
+                error:
+                    "Insufficient stock due to a simultaneous purchase."
             });
         }
 
-        const order = await pool.query(
+        const totalAmount =
+            Number(listing.price) *
+            requestedQuantity;
+
+        const orderResult = await pool.query(
             `
             INSERT INTO orders
             (
@@ -678,66 +790,83 @@ exports.createOrder = async (req, res) => {
                 delivery_method,
                 hostel,
                 room_number,
-                meeting_location
+                meeting_location,
+                status,
+                payment_status,
+                updated_at
             )
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+            VALUES
+            (
+                $1,
+                $2,
+                $3,
+                $4,
+                $5,
+                $6,
+                $7,
+                $8,
+                $9,
+                $10,
+                NOW()
+            )
             RETURNING *
             `,
             [
                 buyer_id,
                 seller_id,
                 listing_id,
-                quantity,
+                requestedQuantity,
                 delivery_method,
-                hostel,
-                room_number,
-                meeting_location
+                hostel || null,
+                room_number || null,
+                meeting_location || null,
+                ORDER_STATUS.PLACED,
+                "paid"
             ]
         );
 
-        const createdOrder = order.rows[0];
+        const createdOrder = orderResult.rows[0];
 
-        res.json({
-            message: "Order created",
-            order: createdOrder
-        });
+        await addOrderStatusHistory(
+            createdOrder.id,
+            ORDER_STATUS.PLACED,
+            buyer_id,
+            "Order placed successfully."
+        );
 
-        // Create notifications after the order succeeds.
-        // Notification failure must not cancel a successful order.
-        Promise.allSettled([
+        await Promise.allSettled([
             createNotification(
                 seller_id,
                 "New Order",
                 `A buyer ordered "${listing.title}".`,
                 "order",
                 createdOrder.id,
-                "profile.html"
+                `orders.html?id=${createdOrder.id}`
             ),
 
             createNotification(
                 buyer_id,
                 "Order Placed",
-                `Your order for "${listing.title}" was placed successfully.`,
+                `Your order for "${listing.title}" was placed.`,
                 "order",
                 createdOrder.id,
-                "profile.html"
+                `orders.html?id=${createdOrder.id}`
             )
-        ]).then(results => {
-            results.forEach(result => {
-                if (result.status === "rejected") {
-                    console.error(
-                        "Order notification error:",
-                        result.reason
-                    );
-                }
-            });
+        ]);
+
+        return res.status(201).json({
+            message: "Order created",
+            order: {
+                ...createdOrder,
+                total_amount: totalAmount
+            }
         });
 
     } catch (err) {
         console.error("Create Order Error:", err);
 
-        res.status(500).json({
-            error: err.message
+        return res.status(500).json({
+            error: "Could not create order."
         });
     }
 };
@@ -773,16 +902,10 @@ exports.getSellerOrders = async (req, res) => {
 
 exports.updateOrderStatus = async (req, res) => {
     const { id } = req.params;
-    const { status } = req.body;
+    const requestedStatus =
+        String(req.body.status || "").toLowerCase();
 
-    const allowedStatuses = [
-        "pending",
-        "accepted",
-        "completed",
-        "cancelled"
-    ];
-
-    if (!allowedStatuses.includes(status)) {
+    if (!VALID_ORDER_STATUSES.has(requestedStatus)) {
         return res.status(400).json({
             error: "Invalid order status."
         });
@@ -791,10 +914,16 @@ exports.updateOrderStatus = async (req, res) => {
     try {
         const orderResult = await pool.query(
             `
-            SELECT orders.*, listings.title
+            SELECT
+                orders.*,
+                listings.title,
+                listings.price,
+                users.name AS buyer_name
             FROM orders
             JOIN listings
                 ON listings.id = orders.listing_id
+            JOIN users
+                ON users.id = orders.buyer_id
             WHERE orders.id = $1
             `,
             [id]
@@ -808,72 +937,135 @@ exports.updateOrderStatus = async (req, res) => {
 
         const existingOrder = orderResult.rows[0];
 
-        if (Number(existingOrder.seller_id) !== Number(req.user.id)) {
+        if (
+            Number(existingOrder.seller_id) !==
+            Number(req.user.id)
+        ) {
             return res.status(403).json({
                 error: "Unauthorized."
             });
         }
 
-        const result = await pool.query(
+        if (
+            !canUpdateOrderStatus(
+                existingOrder.status,
+                requestedStatus
+            )
+        ) {
+            return res.status(400).json({
+                error:
+                    `Cannot change order from ` +
+                    `"${existingOrder.status}" to ` +
+                    `"${requestedStatus}".`
+            });
+        }
+
+        const normalizedStatus =
+            normalizeOrderStatus(requestedStatus);
+
+        const updatedOrderResult = await pool.query(
             `
             UPDATE orders
-            SET status = $1
+            SET
+                status = $1,
+                updated_at = NOW(),
+                completed_at =
+                    CASE
+                        WHEN $1 = 'completed'
+                        THEN NOW()
+                        ELSE completed_at
+                    END,
+                cancelled_at =
+                    CASE
+                        WHEN $1 = 'cancelled'
+                        THEN NOW()
+                        ELSE cancelled_at
+                    END
             WHERE id = $2
             RETURNING *
             `,
-            [status, id]
+            [
+                normalizedStatus,
+                id
+            ]
         );
 
-        if (status === "accepted") {
-            await pool.query(
-                `
-                UPDATE listings
-                SET status = 'sold'
-                WHERE id = $1
-                `,
-                [existingOrder.listing_id]
-            );
-        }
+        const updatedOrder =
+            updatedOrderResult.rows[0];
 
-        const statusMessages = {
-            accepted: `Your order for "${existingOrder.title}" was accepted.`,
-            completed: `Your order for "${existingOrder.title}" was completed.`,
-            cancelled: `Your order for "${existingOrder.title}" was cancelled.`
+        const statusNotes = {
+            preparing: "Seller started preparing the order.",
+            packaged: "Order has been packaged.",
+            ready: "Order is ready for pickup or delivery.",
+            out_for_delivery: "Order is out for delivery.",
+            completed: "Order has been completed.",
+            cancelled: "Order was cancelled."
         };
 
-        if (statusMessages[status]) {
+        await addOrderStatusHistory(
+            updatedOrder.id,
+            normalizedStatus,
+            req.user.id,
+            statusNotes[normalizedStatus] || null
+        );
+
+        const buyerMessages = {
+            preparing:
+                `Your order for "${existingOrder.title}" ` +
+                `is being prepared.`,
+
+            packaged:
+                `Your order for "${existingOrder.title}" ` +
+                `has been packaged.`,
+
+            ready:
+                `Your order for "${existingOrder.title}" ` +
+                `is ready.`,
+
+            out_for_delivery:
+                `Your order for "${existingOrder.title}" ` +
+                `is out for delivery.`,
+
+            completed:
+                `Your order for "${existingOrder.title}" ` +
+                `has been completed.`,
+
+            cancelled:
+                `Your order for "${existingOrder.title}" ` +
+                `was cancelled.`
+        };
+
+        if (buyerMessages[normalizedStatus]) {
             await createNotification(
                 existingOrder.buyer_id,
-                status === "accepted"
-                    ? "Order Accepted"
-                    : status === "completed"
-                        ? "Order Completed"
-                        : "Order Cancelled",
-                statusMessages[status],
-                status === "accepted"
-                    ? "accepted"
-                    : status === "cancelled"
-                        ? "rejected"
-                        : "order",
-                existingOrder.id,
-                "profile.html"
+                normalizedStatus === "cancelled"
+                    ? "Order Cancelled"
+                    : "Order Update",
+                buyerMessages[normalizedStatus],
+                normalizedStatus === "cancelled"
+                    ? "rejected"
+                    : "accepted",
+                updatedOrder.id,
+                `orders.html?id=${updatedOrder.id}`
             );
         }
 
-        res.json({
-            message: "Order updated",
-            order: result.rows[0]
+        return res.json({
+            message: "Order status updated.",
+            order: updatedOrder
         });
 
     } catch (err) {
-        console.error("Update Order Status Error:", err);
+        console.error(
+            "Update Order Status Error:",
+            err
+        );
 
-        res.status(500).json({
-            error: err.message
+        return res.status(500).json({
+            error: "Could not update order status."
         });
     }
 };
-
 exports.markListingSold = async (req, res) => {
     const { id } = req.params;
     const user_id = req.user.id;
@@ -892,5 +1084,123 @@ exports.markListingSold = async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: err.message });
+    }
+};
+
+exports.getBuyerOrders = async (req, res) => {
+    const buyer_id = req.user.id;
+
+    try {
+        const result = await pool.query(
+            `
+            SELECT
+                orders.*,
+                listings.title,
+                listings.image_url,
+                listings.category,
+                listings.price,
+                stores.store_name,
+                sellers.name AS seller_name
+            FROM orders
+            JOIN listings
+                ON listings.id = orders.listing_id
+            LEFT JOIN stores
+                ON stores.user_id = orders.seller_id
+            JOIN users sellers
+                ON sellers.id = orders.seller_id
+            WHERE orders.buyer_id = $1
+            ORDER BY orders.created_at DESC
+            `,
+            [buyer_id]
+        );
+
+        return res.json({
+            orders: result.rows
+        });
+
+    } catch (err) {
+        console.error(
+            "Get Buyer Orders Error:",
+            err
+        );
+
+        return res.status(500).json({
+            error: "Could not load buyer orders."
+        });
+    }
+};
+
+exports.getOrderDetails = async (req, res) => {
+    const user_id = req.user.id;
+    const { id } = req.params;
+
+    try {
+        const orderResult = await pool.query(
+            `
+            SELECT
+                orders.*,
+                listings.title,
+                listings.image_url,
+                listings.category,
+                listings.price,
+                buyer.name AS buyer_name,
+                seller.name AS seller_name,
+                stores.store_name
+            FROM orders
+            JOIN listings
+                ON listings.id = orders.listing_id
+            JOIN users buyer
+                ON buyer.id = orders.buyer_id
+            JOIN users seller
+                ON seller.id = orders.seller_id
+            LEFT JOIN stores
+                ON stores.user_id = orders.seller_id
+            WHERE orders.id = $1
+            AND (
+                orders.buyer_id = $2
+                OR orders.seller_id = $2
+            )
+            `,
+            [
+                id,
+                user_id
+            ]
+        );
+
+        if (orderResult.rows.length === 0) {
+            return res.status(404).json({
+                error: "Order not found."
+            });
+        }
+
+        const historyResult = await pool.query(
+            `
+            SELECT
+                order_status_history.*,
+                users.name AS changed_by_name
+            FROM order_status_history
+            LEFT JOIN users
+                ON users.id =
+                    order_status_history.changed_by
+            WHERE order_id = $1
+            ORDER BY created_at ASC
+            `,
+            [id]
+        );
+
+        return res.json({
+            order: orderResult.rows[0],
+            history: historyResult.rows
+        });
+
+    } catch (err) {
+        console.error(
+            "Get Order Details Error:",
+            err
+        );
+
+        return res.status(500).json({
+            error: "Could not load order details."
+        });
     }
 };
