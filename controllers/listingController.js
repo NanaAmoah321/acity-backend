@@ -1082,7 +1082,7 @@ exports.updateOrderStatus = async (req, res) => {
         );
 
         return res.status(500).json({
-            error: "err.message"
+            error: err.message
         });
     }
 };
