@@ -20,6 +20,8 @@ const emailRoutes = require("./routes/emailRoutes");
 const { globalLimiter } = require("./middleware/rateLimiters");
 const storeRoutes = require("./routes/storeRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
+const paymentRoutes =
+    require("./routes/paymentRoutes");
 
 if (!process.env.JWT_SECRET) {
     throw new Error("JWT_SECRET missing");
@@ -159,6 +161,10 @@ app.use("/api/ai", buyerAiRoutes);
 app.use(
     "/api/analytics",
     analyticsRoutes
+);
+app.use(
+    "/api/payments",
+    paymentRoutes
 );
 
 app.get("/", (req, res) => {
