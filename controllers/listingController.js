@@ -841,7 +841,7 @@ exports.createOrder = async (req, res) => {
                 `A buyer ordered "${listing.title}".`,
                 "order",
                 createdOrder.id,
-                `orders.html?id=${createdOrder.id}`
+                `incoming-orders.html?id=${createdOrder.id}`
             ),
 
             createNotification(
