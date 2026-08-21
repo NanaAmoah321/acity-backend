@@ -988,19 +988,7 @@ exports.updateOrderStatus = async (req, res) => {
             UPDATE orders
             SET
                 status = $1,
-                updated_at = NOW(),
-                completed_at =
-                    CASE
-                        WHEN $1 = 'completed'
-                        THEN NOW()
-                        ELSE completed_at
-                    END,
-                cancelled_at =
-                    CASE
-                        WHEN $1 = 'cancelled'
-                        THEN NOW()
-                        ELSE cancelled_at
-                    END
+                updated_at = NOW()
             WHERE id = $2
             RETURNING *
             `,
@@ -1009,6 +997,28 @@ exports.updateOrderStatus = async (req, res) => {
                 id
             ]
         );
+
+        if (normalizedStatus === "completed") {
+            await pool.query(
+                `
+                UPDATE orders
+                SET completed_at = NOW()
+                WHERE id = $1
+                `,
+                [id]
+            );
+        }
+
+        if (normalizedStatus === "cancelled") {
+            await pool.query(
+                `
+                UPDATE orders
+                SET cancelled_at = NOW()
+                WHERE id = $1
+                `,
+                [id]
+            );
+        }
 
         const updatedOrder =
             updatedOrderResult.rows[0];
