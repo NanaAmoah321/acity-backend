@@ -673,6 +673,9 @@ exports.getInterestedListings = async (req, res) => {
                 users.id AS seller_id,
                 users.name AS seller_name,
                 interests.quantity,
+                interests.selected_options,
+                interests.special_instructions,
+                interests.allergy_note,
                 orders.status AS order_status
             FROM interests
             JOIN listings ON interests.listing_id = listings.id
@@ -943,8 +946,24 @@ exports.createOrder = async (req, res) => {
         delivery_method,
         hostel,
         room_number,
-        meeting_location
+        meeting_location,
+        selected_options = [],
+        special_instructions = "",
+        allergy_note = ""
     } = req.body;
+
+    let parsedOptions = [];
+
+    try {
+        parsedOptions =
+            Array.isArray(selected_options)
+                ? selected_options
+                : JSON.parse(
+                    selected_options || "[]"
+                );
+    } catch {
+        parsedOptions = [];
+    }
 
     const validationError = validateOrder({
         quantity,
@@ -1048,6 +1067,9 @@ exports.createOrder = async (req, res) => {
                 meeting_location,
                 status,
                 payment_status,
+                selected_options,
+                special_instructions,
+                allergy_note,
                 updated_at
             )
             VALUES
@@ -1062,9 +1084,11 @@ exports.createOrder = async (req, res) => {
                 $8,
                 $9,
                 $10,
+                $11::jsonb,
+                $12,
+                $13,
                 NOW()
             )
-            RETURNING *
             `,
             [
                 buyer_id,
@@ -1076,7 +1100,10 @@ exports.createOrder = async (req, res) => {
                 room_number || null,
                 meeting_location || null,
                 ORDER_STATUS.PLACED,
-                "paid"
+                "paid",
+                JSON.stringify(parsedOptions),
+                String(special_instructions || ""),
+                String(allergy_note || "")
             ]
         );
 
