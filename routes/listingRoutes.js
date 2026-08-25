@@ -64,6 +64,17 @@ router.get(
 
 
 // ==========================================
+// ANALYTICS
+// ==========================================
+
+router.get(
+    "/analytics/seller",
+    authMiddleware,
+    listingController.getSellerAnalytics
+);
+
+
+// ==========================================
 // BUYER AND SELLER ORDERS
 // ==========================================
 
@@ -175,11 +186,6 @@ router.delete(
 // ==========================================
 // SINGLE LISTING
 // ==========================================
-router.get(
-    "/analytics/seller",
-    authMiddleware,
-    listingController.getSellerAnalytics
-);
 
 router.get(
     "/:id",
