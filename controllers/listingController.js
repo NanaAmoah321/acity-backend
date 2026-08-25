@@ -114,7 +114,21 @@ async function addOrderStatusHistory(
 }
 
 exports.createListing = async (req, res) => {
-    const { title, description, category, price, stock_quantity } = req.body;
+    const {
+        title,
+        description,
+        category,
+        food_subcategory,
+        price,
+        stock_quantity,
+        prep_time_minutes,
+        spice_level,
+        serving_temperature,
+        portion_size,
+        ingredients,
+        allergens,
+        is_preorder
+    } = req.body;
 
     const validationError = validateListing({
         title,
@@ -125,7 +139,9 @@ exports.createListing = async (req, res) => {
     });
 
     if (validationError) {
-        return res.status(400).json({ error: validationError });
+        return res.status(400).json({
+            error: validationError
+        });
     }
 
     const user_id = req.user.id;
@@ -133,34 +149,88 @@ exports.createListing = async (req, res) => {
 
     try {
         if (req.file) {
-            const fileName = `${Date.now()}-${req.file.originalname}`;
-            const { error } = await supabase.storage
-                .from("listing-images")
-                .upload(fileName, req.file.buffer, {
-                    contentType: req.file.mimetype
-                });
+            const fileName =
+                `${Date.now()}-${req.file.originalname}`;
+
+            const { error } =
+                await supabase.storage
+                    .from("listing-images")
+                    .upload(
+                        fileName,
+                        req.file.buffer,
+                        {
+                            contentType:
+                                req.file.mimetype
+                        }
+                    );
 
             if (error) {
-                return res.status(500).json({ error: error.message });
+                return res.status(500).json({
+                    error: error.message
+                });
             }
 
-            const { data } = supabase.storage
-                .from("listing-images")
-                .getPublicUrl(fileName);
+            const { data } =
+                supabase.storage
+                    .from("listing-images")
+                    .getPublicUrl(fileName);
 
-            image_url = data.publicUrl;
+            image_url =
+                data.publicUrl;
         }
 
-        const newListing = await pool.query(
-            `
-            INSERT INTO listings (
-                user_id, title, description, category, price, stock_quantity, image_url, status
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            RETURNING *
-            `,
-            [user_id, title, description, category, price, stock_quantity, image_url, "available"]
-        );
+        const result =
+            await pool.query(
+                `
+                INSERT INTO listings (
+                    user_id,
+                    title,
+                    description,
+                    category,
+                    food_subcategory,
+                    price,
+                    stock_quantity,
+                    image_url,
+                    status,
+                    prep_time_minutes,
+                    spice_level,
+                    serving_temperature,
+                    portion_size,
+                    ingredients,
+                    allergens,
+                    is_preorder
+                )
+                VALUES (
+                    $1, $2, $3, $4, $5, $6,
+                    $7, $8, $9, $10, $11, $12,
+                    $13, $14, $15, $16
+                )
+                RETURNING *
+                `,
+                [
+                    user_id,
+                    title.trim(),
+                    description.trim(),
+                    category,
+                    food_subcategory || null,
+                    Number(price),
+                    Number(stock_quantity),
+                    image_url,
+                    Number(stock_quantity) > 0
+                        ? "available"
+                        : "sold",
+                    prep_time_minutes
+                        ? Number(prep_time_minutes)
+                        : null,
+                    spice_level || null,
+                    serving_temperature || null,
+                    portion_size || null,
+                    ingredients || null,
+                    allergens || null,
+                    is_preorder === true ||
+                    is_preorder === "true"
+                ]
+            );
 
         await pool.query(
             `
@@ -168,99 +238,24 @@ exports.createListing = async (req, res) => {
             SET store_category = $1
             WHERE id = $2
             `,
-            [category, user_id]
-        );
-
-        const subscribers = await pool.query(
-        `
-        SELECT
-           id
-        FROM users
-        WHERE
-            receive_marketplace_updates = TRUE
-        `
-        );
-
-        const followers = await pool.query(
-        `
-        SELECT
-            follower_id AS id
-        FROM store_followers
-        WHERE
-            following_user_id = $1
-        `,
-        [
-            req.user.id
-        ]
-        );
-
-        const recipients = new Set();
-
-        subscribers.rows.forEach(user=>{
-
-            recipients.add(user.id);
-
-        });
-
-        followers.rows.forEach(user=>{
-
-            recipients.add(user.id);
-
-        });
-
-        for(const userId of recipients){
-
-            await pool.query(
-            `
-            INSERT INTO email_queue(
-
-                user_id,
-
-                seller_id,
-
-                listing_id,
-
-                type,
-
-                status,
-
-                processed
-
-            )
-
-            VALUES(
-
-                $1,
-
-                $2,
-
-                $3,
-
-                'listing',
-
-                'pending',
-
-                FALSE
-
-            )
-            `,
             [
-
-                userId,
-
-                req.user.id,
-
-                newListing.rows[0].id
-
+                category,
+                user_id
             ]
-            );
+        );
 
-        }
-        res.json(newListing.rows[0]);
+        return res.status(201).json(
+            result.rows[0]
+        );
+    } catch (error) {
+        console.error(
+            "CREATE LISTING ERROR:",
+            error
+        );
 
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: err.message });
+        return res.status(500).json({
+            error: error.message
+        });
     }
 };
 
@@ -330,43 +325,171 @@ exports.getUserListings = async (req, res) => {
 };
 
 exports.updateListing = async (req, res) => {
-    const { id } = req.params;
-    const { title, description, category, price, stock_quantity, image_url, status } = req.body;
+    const {
+        id
+    } = req.params;
 
-    const validationError = validateListing({ title, description, category, price, stock_quantity });
-    if (validationError) {
-        return res.status(400).json({ error: validationError });
-    }
-
-    const user_id = req.user.id;
+    const user_id =
+        req.user.id;
 
     try {
-        const result = await pool.query(
-            `
-            UPDATE listings
-            SET
-              title = $1,
-              description = $2,
-              category = $3,
-              price = $4,
-              image_url = $5,
-              status = $6,
-              stock_quantity = $9,
-              sold_at = CASE WHEN status <> 'sold' AND $6::varchar = 'sold' THEN NOW() ELSE sold_at END
-            WHERE id = $7 AND user_id = $8
-            RETURNING *
-            `,
-            [title, description, category, price, image_url, status, id, user_id, stock_quantity]
-        );
+        const existing =
+            await pool.query(
+                `
+                SELECT *
+                FROM listings
+                WHERE id = $1
+                AND user_id = $2
+                `,
+                [
+                    id,
+                    user_id
+                ]
+            );
 
-        if (result.rows.length === 0) {
-            return res.status(403).json({ message: "You are not authorized to modify this listing" });
+        if (existing.rows.length === 0) {
+            return res.status(404).json({
+                error: "Listing not found."
+            });
         }
 
-        res.json({ message: "Listing updated", listing: result.rows[0] });
-    } catch (err) {
-        console.error("UPDATE ERROR:", err);
-        res.status(500).json({ error: err.message });
+        const current =
+            existing.rows[0];
+
+        const title =
+            req.body.title ??
+            current.title;
+
+        const description =
+            req.body.description ??
+            current.description;
+
+        const category =
+            req.body.category ??
+            current.category;
+
+        const price =
+            req.body.price ??
+            current.price;
+
+        const stock_quantity =
+            req.body.stock_quantity ??
+            current.stock_quantity;
+
+        const image_url =
+            req.body.image_url ??
+            current.image_url;
+
+        const quantity =
+            Number(stock_quantity);
+
+        if (
+            !Number.isFinite(Number(price)) ||
+            Number(price) < 0
+        ) {
+            return res.status(400).json({
+                error: "Invalid price."
+            });
+        }
+
+        if (
+            !Number.isInteger(quantity) ||
+            quantity < 0
+        ) {
+            return res.status(400).json({
+                error: "Quantity must be a whole number of zero or more."
+            });
+        }
+
+        let status =
+            req.body.status ??
+            current.status;
+
+        if (quantity === 0) {
+            status = "sold";
+        }
+
+        if (
+            quantity > 0 &&
+            (
+                status === "sold" ||
+                status === "archived"
+            ) &&
+            req.body.status !== "archived"
+        ) {
+            status = "available";
+        }
+
+        const result =
+            await pool.query(
+                `
+                UPDATE listings
+                SET
+                    title = $1,
+                    description = $2,
+                    category = $3,
+                    food_subcategory = COALESCE($4, food_subcategory),
+                    price = $5,
+                    stock_quantity = $6,
+                    image_url = $7,
+                    status = $8,
+                    prep_time_minutes = COALESCE($9, prep_time_minutes),
+                    spice_level = COALESCE($10, spice_level),
+                    serving_temperature = COALESCE($11, serving_temperature),
+                    portion_size = COALESCE($12, portion_size),
+                    ingredients = COALESCE($13, ingredients),
+                    allergens = COALESCE($14, allergens),
+                    is_preorder = COALESCE($15, is_preorder),
+                    sold_at = CASE
+                        WHEN $8 = 'sold'
+                        THEN COALESCE(sold_at, NOW())
+                        ELSE NULL
+                    END
+                WHERE id = $16
+                AND user_id = $17
+                RETURNING *
+                `,
+                [
+                    title.trim(),
+                    description.trim(),
+                    category,
+                    req.body.food_subcategory || null,
+                    Number(price),
+                    quantity,
+                    image_url,
+                    status,
+                    req.body.prep_time_minutes
+                        ? Number(req.body.prep_time_minutes)
+                        : null,
+                    req.body.spice_level || null,
+                    req.body.serving_temperature || null,
+                    req.body.portion_size || null,
+                    req.body.ingredients || null,
+                    req.body.allergens || null,
+                    req.body.is_preorder === undefined
+                        ? null
+                        : (
+                            req.body.is_preorder === true ||
+                            req.body.is_preorder === "true"
+                        ),
+                    id,
+                    user_id
+                ]
+            );
+
+        return res.json({
+            message: "Listing updated successfully.",
+            listing: result.rows[0]
+        });
+    } catch (error) {
+        console.error(
+            "UPDATE LISTING ERROR:",
+            error
+        );
+
+        return res.status(500).json({
+            error: error.message
+        });
     }
 };
 
