@@ -547,30 +547,119 @@ exports.deleteListing = async (req, res) => {
 };
 
 exports.addInterest = async (req, res) => {
-    const user_id = req.user.id;
-    const { listing_id } = req.body;
+    const user_id =
+        req.user.id;
+
+    const {
+        listing_id,
+        quantity = 1,
+        selected_options = [],
+        special_instructions = "",
+        allergy_note = ""
+    } = req.body;
+
+    let options = [];
 
     try {
-        const existing = await pool.query(
-            "SELECT * FROM interests WHERE user_id=$1 AND listing_id=$2",
-            [user_id, listing_id]
-        );
+        options =
+            Array.isArray(selected_options)
+                ? selected_options
+                : JSON.parse(
+                    selected_options || "[]"
+                );
+    } catch {
+        options = [];
+    }
+
+    if (!Number.isInteger(Number(quantity)) || Number(quantity) < 1) {
+        return res.status(400).json({
+            error: "Quantity must be at least 1."
+        });
+    }
+
+    try {
+        const existing =
+            await pool.query(
+                `
+                SELECT *
+                FROM interests
+                WHERE user_id = $1
+                AND listing_id = $2
+                `,
+                [
+                    user_id,
+                    listing_id
+                ]
+            );
 
         if (existing.rows.length > 0) {
             await pool.query(
-                "UPDATE interests SET quantity = quantity + 1 WHERE user_id=$1 AND listing_id=$2",
-                [user_id, listing_id]
+                `
+                UPDATE interests
+                SET
+                    quantity = quantity + $1,
+                    selected_options = $2::jsonb,
+                    special_instructions = $3,
+                    allergy_note = $4
+                WHERE user_id = $5
+                AND listing_id = $6
+                `,
+                [
+                    Number(quantity),
+                    JSON.stringify(options),
+                    String(special_instructions || ""),
+                    String(allergy_note || ""),
+                    user_id,
+                    listing_id
+                ]
             );
-            return res.json({ message: "Quantity updated." });
+
+            return res.json({
+                message: "Cart item updated."
+            });
         }
 
         await pool.query(
-            "INSERT INTO interests (user_id, listing_id, quantity) VALUES($1,$2,1)",
-            [user_id, listing_id]
+            `
+            INSERT INTO interests (
+                user_id,
+                listing_id,
+                quantity,
+                selected_options,
+                special_instructions,
+                allergy_note
+            )
+            VALUES (
+                $1,
+                $2,
+                $3,
+                $4::jsonb,
+                $5,
+                $6
+            )
+            `,
+            [
+                user_id,
+                listing_id,
+                Number(quantity),
+                JSON.stringify(options),
+                String(special_instructions || ""),
+                String(allergy_note || "")
+            ]
         );
-        res.json({ message: "Added to cart." });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+
+        return res.json({
+            message: "Added to cart."
+        });
+    } catch (error) {
+        console.error(
+            "ADD TO CART ERROR:",
+            error
+        );
+
+        return res.status(500).json({
+            error: error.message
+        });
     }
 };
 
