@@ -7,7 +7,6 @@ const { resourceLimiter } = require("../middleware/rateLimiters");
 
 const storeController = require("../controllers/storeController");
 
-const upload =  require("../middleware/upload");
 
 
 router.get(
