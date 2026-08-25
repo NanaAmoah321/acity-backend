@@ -130,6 +130,20 @@ exports.createListing = async (req, res) => {
         is_preorder
     } = req.body;
 
+    let foodOptions = [];
+
+    try {
+        foodOptions = JSON.parse(
+            req.body.food_options || "[]"
+        );
+
+        if (!Array.isArray(foodOptions)) {
+            foodOptions = [];
+        }
+    } catch {
+        foodOptions = [];
+    }
+
     const validationError = validateListing({
         title,
         description,
@@ -188,6 +202,7 @@ exports.createListing = async (req, res) => {
                     description,
                     category,
                     food_subcategory,
+                    food_options,
                     price,
                     stock_quantity,
                     image_url,
@@ -203,7 +218,7 @@ exports.createListing = async (req, res) => {
                 VALUES (
                     $1, $2, $3, $4, $5, $6,
                     $7, $8, $9, $10, $11, $12,
-                    $13, $14, $15, $16
+                    $13, $14, $15, $16, $17
                 )
                 RETURNING *
                 `,
@@ -213,6 +228,7 @@ exports.createListing = async (req, res) => {
                     description.trim(),
                     category,
                     food_subcategory || null,
+                    JSON.stringify(foodOptions),
                     Number(price),
                     Number(stock_quantity),
                     image_url,
