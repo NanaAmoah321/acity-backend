@@ -175,6 +175,11 @@ router.delete(
 // ==========================================
 // SINGLE LISTING
 // ==========================================
+router.get(
+    "/analytics/seller",
+    authMiddleware,
+    listingController.getSellerAnalytics
+);
 
 router.get(
     "/:id",

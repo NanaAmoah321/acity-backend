@@ -1364,3 +1364,164 @@ exports.getOrderDetails = async (req, res) => {
         });
     }
 };
+
+exports.getSellerAnalytics = async (req, res) => {
+    const sellerId =
+        Number(req.user.id);
+
+    try {
+        const summary =
+            await pool.query(
+                `
+                SELECT
+                    COUNT(DISTINCT listings.id)
+                        FILTER (
+                            WHERE listings.status <> 'archived'
+                        ) AS active_listings,
+
+                    COUNT(orders.id)
+                        FILTER (
+                            WHERE orders.status NOT IN (
+                                'cancelled',
+                                'rejected'
+                            )
+                        ) AS total_orders,
+
+                    COALESCE(
+                        SUM(
+                            listings.price *
+                            orders.quantity
+                        ) FILTER (
+                            WHERE orders.status IN (
+                                'accepted',
+                                'completed'
+                            )
+                        ),
+                        0
+                    ) AS total_revenue,
+
+                    COALESCE(
+                        AVG(
+                            listings.price *
+                            orders.quantity
+                        ) FILTER (
+                            WHERE orders.status IN (
+                                'accepted',
+                                'completed'
+                            )
+                        ),
+                        0
+                    ) AS average_order_value
+                FROM listings
+                LEFT JOIN orders
+                    ON orders.listing_id = listings.id
+                WHERE listings.user_id = $1
+                `,
+                [sellerId]
+            );
+
+        const revenueByCategory =
+            await pool.query(
+                `
+                SELECT
+                    listings.category,
+                    COALESCE(
+                        SUM(
+                            listings.price *
+                            orders.quantity
+                        ),
+                        0
+                    ) AS revenue
+                FROM orders
+                JOIN listings
+                    ON listings.id = orders.listing_id
+                WHERE orders.seller_id = $1
+                AND orders.status IN (
+                    'accepted',
+                    'completed'
+                )
+                GROUP BY listings.category
+                ORDER BY revenue DESC
+                `,
+                [sellerId]
+            );
+
+        const dailyRevenue =
+            await pool.query(
+                `
+                SELECT
+                    DATE(orders.created_at) AS date,
+                    COALESCE(
+                        SUM(
+                            listings.price *
+                            orders.quantity
+                        ),
+                        0
+                    ) AS revenue,
+                    COUNT(orders.id) AS orders
+                FROM orders
+                JOIN listings
+                    ON listings.id = orders.listing_id
+                WHERE orders.seller_id = $1
+                AND orders.status IN (
+                    'accepted',
+                    'completed'
+                )
+                AND orders.created_at >=
+                    CURRENT_DATE - INTERVAL '30 days'
+                GROUP BY DATE(orders.created_at)
+                ORDER BY date ASC
+                `,
+                [sellerId]
+            );
+
+        const topListings =
+            await pool.query(
+                `
+                SELECT
+                    listings.id,
+                    listings.title,
+                    listings.category,
+                    SUM(orders.quantity) AS units_sold,
+                    SUM(
+                        listings.price *
+                        orders.quantity
+                    ) AS revenue
+                FROM orders
+                JOIN listings
+                    ON listings.id = orders.listing_id
+                WHERE orders.seller_id = $1
+                AND orders.status IN (
+                    'accepted',
+                    'completed'
+                )
+                GROUP BY
+                    listings.id,
+                    listings.title,
+                    listings.category
+                ORDER BY units_sold DESC
+                LIMIT 5
+                `,
+                [sellerId]
+            );
+
+        return res.json({
+            summary: summary.rows[0],
+            revenueByCategory:
+                revenueByCategory.rows,
+            dailyRevenue:
+                dailyRevenue.rows,
+            topListings:
+                topListings.rows
+        });
+    } catch (error) {
+        console.error(
+            "SELLER ANALYTICS ERROR:",
+            error
+        );
+
+        return res.status(500).json({
+            error: "Unable to load seller analytics."
+        });
+    }
+};
