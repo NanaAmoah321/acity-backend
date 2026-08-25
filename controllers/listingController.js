@@ -425,28 +425,35 @@ exports.updateListing = async (req, res) => {
                 `
                 UPDATE listings
                 SET
-                    title = $1,
-                    description = $2,
-                    category = $3,
-                    food_subcategory = COALESCE($4, food_subcategory),
-                    price = $5,
-                    stock_quantity = $6,
-                    image_url = $7,
-                    status = $8,
-                    prep_time_minutes = COALESCE($9, prep_time_minutes),
-                    spice_level = COALESCE($10, spice_level),
-                    serving_temperature = COALESCE($11, serving_temperature),
-                    portion_size = COALESCE($12, portion_size),
-                    ingredients = COALESCE($13, ingredients),
-                    allergens = COALESCE($14, allergens),
-                    is_preorder = COALESCE($15, is_preorder),
+                    title = $1::text,
+                    description = $2::text,
+                    category = $3::text,
+                    food_subcategory = COALESCE($4::text, food_subcategory),
+                    price = $5::numeric,
+                    stock_quantity = $6::integer,
+                    image_url = $7::text,
+                    status = $8::text,
+                    prep_time_minutes =
+                        COALESCE($9::integer, prep_time_minutes),
+                    spice_level =
+                        COALESCE($10::text, spice_level),
+                    serving_temperature =
+                        COALESCE($11::text, serving_temperature),
+                    portion_size =
+                        COALESCE($12::text, portion_size),
+                    ingredients =
+                        COALESCE($13::text, ingredients),
+                    allergens =
+                        COALESCE($14::text, allergens),
+                    is_preorder =
+                        COALESCE($15::boolean, is_preorder),
                     sold_at = CASE
-                        WHEN $8 = 'sold'
+                        WHEN $8::text = 'sold'
                         THEN COALESCE(sold_at, NOW())
                         ELSE NULL
                     END
-                WHERE id = $16
-                AND user_id = $17
+                WHERE id = $16::integer
+                AND user_id = $17::integer
                 RETURNING *
                 `,
                 [
@@ -456,7 +463,7 @@ exports.updateListing = async (req, res) => {
                     req.body.food_subcategory || null,
                     Number(price),
                     quantity,
-                    image_url,
+                    image_url || null,
                     status,
                     req.body.prep_time_minutes
                         ? Number(req.body.prep_time_minutes)
@@ -472,8 +479,8 @@ exports.updateListing = async (req, res) => {
                             req.body.is_preorder === true ||
                             req.body.is_preorder === "true"
                         ),
-                    id,
-                    user_id
+                    Number(id),
+                    Number(user_id)
                 ]
             );
 
