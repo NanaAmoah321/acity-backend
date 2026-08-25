@@ -7,6 +7,9 @@ const { resourceLimiter } = require("../middleware/rateLimiters");
 
 const storeController = require("../controllers/storeController");
 
+const upload =  require("../middleware/upload");
+
+
 router.get(
     "/me",
     authMiddleware,
@@ -19,6 +22,13 @@ router.post(
     resourceLimiter,
     upload.single("image"),
     storeController.createStore
+);
+
+router.put(
+    "/me",
+    authMiddleware,
+    upload.single("image"),
+    storeController.updateStore
 );
 
 module.exports = router;
