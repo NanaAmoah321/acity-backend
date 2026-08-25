@@ -174,10 +174,24 @@ exports.updateStore = async (req, res) => {
 
     try {
         let imageQuery = "";
+
+        let parsedCategories = [];
+
+        try {
+            parsedCategories =
+                Array.isArray(req.body.categories)
+                    ? req.body.categories
+                    : JSON.parse(
+                        req.body.categories || "[]"
+                    );
+        } catch {
+            parsedCategories = [];
+        }
+
         const values = [
             store_name.trim(),
             description.trim(),
-            categories || "[]",
+            parsedCategories,
             opening_time || null,
             closing_time || null,
             phone || null,
