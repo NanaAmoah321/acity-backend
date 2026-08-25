@@ -190,7 +190,7 @@ exports.updateStore = async (req, res) => {
 
             const { error } =
                 await supabase.storage
-                    .from("store-images")
+                    .from("listing-images")
                     .upload(
                         fileName,
                         req.file.buffer,
@@ -209,7 +209,7 @@ exports.updateStore = async (req, res) => {
 
             const { data } =
                 supabase.storage
-                    .from("store-images")
+                    .from("listing-images")
                     .getPublicUrl(fileName);
 
             values.push(data.publicUrl);
