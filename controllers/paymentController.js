@@ -13,10 +13,27 @@ function getReference() {
         .toUpperCase()}`;
 }
 
-function getFrontendUrl() {
+function getFrontendUrl(req) {
+    const requestOrigin =
+        req.get("origin");
+
+    const allowedOrigins = [
+        "http://localhost:5500",
+        "http://127.0.0.1:5500",
+        "https://acityconnect.com",
+        "https://www.acityconnect.com"
+    ];
+
+    if (
+        requestOrigin &&
+        allowedOrigins.includes(requestOrigin)
+    ) {
+        return requestOrigin;
+    }
+
     return (
         process.env.FRONTEND_URL ||
-        "http://127.0.0.1:5500"
+        "https://acityconnect.com"
     ).replace(/\/$/, "");
 }
 
@@ -61,14 +78,36 @@ async function getCheckoutTotal(items) {
             );
         }
 
-        total += Number(listing.price) * quantity;
+        
+
+        const selectedOptions =
+            Array.isArray(item.selected_options)
+                ? item.selected_options
+                : [];
+
+        const optionsTotal =
+            selectedOptions.reduce(
+                (sum, option) =>
+                    sum + Number(option.price || 0),
+                0
+            );
+
+        total += (
+            Number(listing.price) +
+            optionsTotal
+        ) * quantity;
 
         verifiedItems.push({
             listing_id: listing.id,
             seller_id: listing.user_id,
             title: listing.title,
             price: Number(listing.price),
-            quantity
+            quantity,
+            selected_options: selectedOptions,
+            special_instructions:
+                item.special_instructions || "",
+            allergy_note:
+                item.allergy_note || ""
         });
     }
 
@@ -85,9 +124,13 @@ async function createOrdersFromPayment(
     paymentStatus
 ) {
     const checkout =
-        typeof intent.checkout_data === "string"
-            ? JSON.parse(intent.checkout_data)
-            : intent.checkout_data;
+    typeof intent.checkout_data === "string"
+        ? JSON.parse(intent.checkout_data)
+        : intent.checkout_data;
+
+    const delivery =
+        checkout.delivery || {};
+
 
     const createdOrders = [];
 
@@ -128,13 +171,17 @@ async function createOrdersFromPayment(
                 payment_method,
                 payment_status,
                 payment_reference,
+                selected_options,
+                special_instructions,
+                allergy_note,
                 updated_at
+                
             )
             VALUES
             (
                 $1,$2,$3,$4,$5,$6,$7,$8,
                 'pending',
-                $9,$10,$11,NOW()
+                $9,$10,$11,$12::jsonb,$13,$14,NOW()
             )
             RETURNING *
             `,
@@ -143,13 +190,17 @@ async function createOrdersFromPayment(
                 item.seller_id,
                 item.listing_id,
                 item.quantity,
-                checkout.delivery_method,
-                checkout.hostel || null,
-                checkout.room_number || null,
-                checkout.meeting_location || null,
+                delivery.delivery_method,
+                delivery.hostel || null,
+                delivery.room_number || null,
+                delivery.meeting_location || null,
+                "pending",
                 "online",
                 paymentStatus,
-                intent.reference
+                intent.reference,
+                JSON.stringify(item.selected_options || []),
+                String(item.special_instructions || ""),
+                String(item.allergy_note || "")
             ]
         );
 
@@ -273,7 +324,7 @@ exports.initializePayment = async (req, res) => {
                         currency: "GHS",
                         reference,
                         callback_url:
-                            `${getFrontendUrl()}/payment.html`,
+                            `${getFrontendUrl(req)}/payment.html`,
                         metadata: JSON.stringify({
                             user_id: userId,
                             payment_reference: reference
