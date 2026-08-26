@@ -1109,14 +1109,14 @@ exports.createOrder = async (req, res) => {
 
         const createdOrder = orderResult.rows[0];
 
-        await addOrderStatusHistory(
-            createdOrder.id,
-            ORDER_STATUS.PLACED,
-            buyer_id,
-            "Order placed successfully."
-        );
-
         await Promise.allSettled([
+            addOrderStatusHistory(
+                createdOrder.id,
+                ORDER_STATUS.PLACED,
+                buyer_id,
+                "Order placed successfully."
+            ),
+
             createNotification(
                 seller_id,
                 "New Order",
@@ -1156,6 +1156,7 @@ exports.createOrder = async (req, res) => {
 exports.getSellerOrders = async (req, res) => {
     const seller_id = req.user.id;
     try {
+        
         const orders = await pool.query(
             `
             SELECT orders.*, listings.title, listings.price, users.name AS buyer_name
