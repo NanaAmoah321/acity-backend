@@ -157,8 +157,7 @@ async function createOrdersFromPayment(
 
         const orderResult = await client.query(
             `
-            INSERT INTO orders
-            (
+            INSERT INTO orders (
                 buyer_id,
                 seller_id,
                 listing_id,
@@ -175,13 +174,24 @@ async function createOrdersFromPayment(
                 special_instructions,
                 allergy_note,
                 updated_at
-                
             )
-            VALUES
-            (
-                $1,$2,$3,$4,$5,$6,$7,$8,
-                'pending',
-                $9,$10,$11,$12::jsonb,$13,$14,$15,NOW()
+            VALUES (
+                $1,
+                $2,
+                $3,
+                $4,
+                $5,
+                $6,
+                $7,
+                $8,
+                $9,
+                $10,
+                $11,
+                $12,
+                $13::jsonb,
+                $14,
+                $15,
+                NOW()
             )
             RETURNING *
             `,
@@ -190,17 +200,28 @@ async function createOrdersFromPayment(
                 item.seller_id,
                 item.listing_id,
                 item.quantity,
+
                 delivery.delivery_method,
                 delivery.hostel || null,
                 delivery.room_number || null,
                 delivery.meeting_location || null,
+
                 "pending",
                 "online",
                 paymentStatus,
                 intent.reference,
-                JSON.stringify(item.selected_options || []),
-                String(item.special_instructions || ""),
-                String(item.allergy_note || "")
+
+                JSON.stringify(
+                    item.selected_options || []
+                ),
+
+                String(
+                    item.special_instructions || ""
+                ),
+
+                String(
+                    item.allergy_note || ""
+                )
             ]
         );
 
