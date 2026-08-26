@@ -181,7 +181,7 @@ async function createOrdersFromPayment(
             (
                 $1,$2,$3,$4,$5,$6,$7,$8,
                 'pending',
-                $9,$10,$11,$12::jsonb,$13,$14,NOW()
+                $9,$10,$11,$12::jsonb,$13,$14,$15,NOW()
             )
             RETURNING *
             `,
