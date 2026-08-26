@@ -1100,7 +1100,7 @@ exports.createOrder = async (req, res) => {
                 room_number || null,
                 meeting_location || null,
                 ORDER_STATUS.PLACED,
-                "paid",
+                payment_status || "unpaid",
                 JSON.stringify(parsedOptions),
                 String(special_instructions || ""),
                 String(allergy_note || "")
@@ -1109,14 +1109,21 @@ exports.createOrder = async (req, res) => {
 
         const createdOrder = orderResult.rows[0];
 
-        await Promise.allSettled([
-            addOrderStatusHistory(
+        try {
+            await addOrderStatusHistory(
                 createdOrder.id,
                 ORDER_STATUS.PLACED,
                 buyer_id,
                 "Order placed successfully."
-            ),
+            );
+        } catch (historyError) {
+            console.error(
+                "Order history error:",
+                historyError
+            );
+        }
 
+        await Promise.allSettled([
             createNotification(
                 seller_id,
                 "New Order",
@@ -1159,10 +1166,18 @@ exports.getSellerOrders = async (req, res) => {
         
         const orders = await pool.query(
             `
-            SELECT orders.*, listings.title, listings.price, users.name AS buyer_name
+            SELECT
+                orders.*,
+                listings.title,
+                listings.price,
+                listings.image_url AS listing_image_url,
+                listings.category,
+                users.name AS buyer_name
             FROM orders
-            JOIN listings ON listings.id = orders.listing_id
-            JOIN users ON users.id = orders.buyer_id
+            JOIN listings
+                ON listings.id = orders.listing_id
+            JOIN users
+                ON users.id = orders.buyer_id
             WHERE orders.seller_id = $1
             ORDER BY orders.created_at DESC
             `,
