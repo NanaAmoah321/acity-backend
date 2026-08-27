@@ -949,7 +949,8 @@ exports.createOrder = async (req, res) => {
         meeting_location,
         selected_options = [],
         special_instructions = "",
-        allergy_note = ""
+        allergy_note = "",
+        payment_status = "unpaid"
     } = req.body;
 
     let parsedOptions = [];
