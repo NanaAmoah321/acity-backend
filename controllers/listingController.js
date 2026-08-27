@@ -1090,6 +1090,7 @@ exports.createOrder = async (req, res) => {
                 $13,
                 NOW()
             )
+            RETURNING*
             `,
             [
                 buyer_id,
